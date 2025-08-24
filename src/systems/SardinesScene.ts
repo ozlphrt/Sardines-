@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { FlockManager, FlockConfig } from './FlockManager.js'
 import { FishBehavior } from './Fish.js'
 import { FishRenderer, FishRenderConfig } from './FishRenderer.js'
+import { useSimulationStore } from '../stores/simulationStore.js'
 
 export interface SceneStats {
   fps: number
