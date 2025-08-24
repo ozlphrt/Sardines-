@@ -208,8 +208,8 @@ export class SardinesScene {
       this.fishRenderer.updateFish(fish)
     }
 
-         // Update special cameras (follow/action modes) - DISABLED for manual control
-     // this.updateSpecialCameras()
+         // Update special cameras (follow/action/single-fish modes)
+     this.updateSpecialCameras()
 
     // Update controls
     this.controls.update()
@@ -264,13 +264,17 @@ export class SardinesScene {
   }
 
   public updateCamera(cameraState: { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }): void {
-    // Determine camera mode from position
-    if (cameraState.position.x === 0 && cameraState.position.y === 60 && cameraState.position.z === 150) {
+    // Get the current camera preset from the store to determine mode
+    const { ui } = useSimulationStore.getState()
+    const selectedPreset = ui.selectedCameraPreset
+    
+    // Determine camera mode from preset name
+    if (selectedPreset === 'single-fish') {
+      this.currentCameraMode = 'single-fish'
+    } else if (selectedPreset === 'follow') {
       this.currentCameraMode = 'follow'
-    } else if (cameraState.position.x === 120 && cameraState.position.y === 40 && cameraState.position.z === 80) {
+    } else if (selectedPreset === 'action') {
       this.currentCameraMode = 'action'
-    } else if (cameraState.position.x === 0 && cameraState.position.y === 50 && cameraState.position.z === 200) {
-      this.currentCameraMode = 'static'
     } else {
       this.currentCameraMode = 'static'
     }
@@ -331,6 +335,24 @@ export class SardinesScene {
       this.camera.position.lerp(actionPosition, this.cameraLerpFactor * 2)
       this.controls.target.lerp(flockCenter, this.cameraLerpFactor * 2)
       this.controls.update()
+    } else if (this.currentCameraMode === 'single-fish') {
+      // Single fish follow camera - follows one specific fish closely
+      const targetFish = fish[0] // Follow the first fish
+      const fishPosition = targetFish.physics.position.clone()
+      
+      // Position camera behind and slightly above the fish
+      const offset = new THREE.Vector3(0, 2, 8) // Behind and above
+      const targetPosition = fishPosition.clone().add(offset)
+      
+      // Smooth camera movement with faster response for close following
+      this.camera.position.lerp(targetPosition, this.cameraLerpFactor * 3)
+      this.controls.target.lerp(fishPosition, this.cameraLerpFactor * 3)
+      this.controls.update()
+      
+      // Log fish position for debugging
+      if (Math.floor(Date.now() / 1000) % 5 === 0) { // Log every 5 seconds
+        console.log('Following fish at position:', fishPosition.toArray())
+      }
     }
   }
 

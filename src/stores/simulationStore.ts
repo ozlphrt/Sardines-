@@ -256,6 +256,7 @@ export const useSimulationStore = create<SimulationStore>()(
             far: { position: { x: 0, y: 80, z: 300 }, target: { x: 0, y: 0, z: 0 } },
             action: { position: { x: 120, y: 40, z: 80 }, target: { x: 0, y: 0, z: 0 } },
             follow: { position: { x: 0, y: 60, z: 150 }, target: { x: 0, y: 0, z: 0 } },
+            'single-fish': { position: { x: 0, y: 60, z: 150 }, target: { x: 0, y: 0, z: 0 } },
             corner: { position: { x: 150, y: 100, z: 150 }, target: { x: 0, y: 0, z: 0 } },
           }
           
@@ -268,6 +269,12 @@ export const useSimulationStore = create<SimulationStore>()(
                 selectedCameraPreset: preset,
               },
             }))
+            
+            // Set camera mode based on preset
+            if (preset === 'single-fish') {
+              // This will be handled by the scene when it detects the preset
+              console.log('Single fish camera mode activated')
+            }
           }
         },
         

@@ -304,6 +304,16 @@ const Sidebar: React.FC = () => {
             >
               Follow
             </button>
+            <button
+              onClick={() => actions.loadCameraPreset('single-fish')}
+              className={`px-1 py-0.5 rounded text-xs transition-colors ${
+                ui.selectedCameraPreset === 'single-fish' 
+                  ? 'bg-success/40 text-success font-semibold' 
+                  : 'bg-success/20 hover:bg-success/30 text-success'
+              }`}
+            >
+              Single Fish
+            </button>
            <button
              onClick={() => actions.loadCameraPreset('corner')}
              className={`px-1 py-0.5 rounded text-xs transition-colors ${
