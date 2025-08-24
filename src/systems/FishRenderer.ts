@@ -81,23 +81,47 @@ export class FishRenderer {
       const originalMaterial = (fishMesh as THREE.Mesh).material
       if (Array.isArray(originalMaterial)) {
         this.material = originalMaterial[0].clone()
+        console.log('Cloned material from array:', this.material.name)
       } else {
         this.material = originalMaterial.clone()
+        console.log('Cloned single material:', this.material.name)
+      }
+      
+      // Log material properties for debugging
+      if (this.material) {
+        console.log('Material type:', this.material.type)
+        console.log('Material name:', this.material.name)
+        if (this.material instanceof THREE.MeshStandardMaterial) {
+          console.log('Has map:', !!this.material.map)
+          console.log('Has normalMap:', !!this.material.normalMap)
+          console.log('Has roughnessMap:', !!this.material.roughnessMap)
+          console.log('Has metalnessMap:', !!this.material.metalnessMap)
+        }
       }
 
-      // Configure material for underwater rendering
+      // Configure material for underwater rendering with textures
       if (this.material instanceof THREE.Material) {
-        // Convert to basic material to avoid shader issues
+        // Preserve original materials and textures
         if (this.material instanceof THREE.MeshStandardMaterial || 
             this.material instanceof THREE.MeshLambertMaterial ||
             this.material instanceof THREE.MeshPhongMaterial) {
           
-          // Create a new basic material with a nice fish color
-          this.material = new THREE.MeshBasicMaterial({
-            color: new THREE.Color(0x4A90E2), // Blue fish color
-            transparent: false,
-            side: THREE.DoubleSide
-          })
+          // Keep the original material but optimize for underwater rendering
+          this.material.side = THREE.DoubleSide
+          this.material.transparent = false
+          
+          // Add subtle underwater lighting adjustments
+          if (this.material instanceof THREE.MeshStandardMaterial) {
+            this.material.metalness = 0.1 // Reduce metalness for fish
+            this.material.roughness = 0.8 // Increase roughness for natural look
+            this.material.envMapIntensity = 0.3 // Reduce environment reflection
+          }
+          
+          console.log('Using original material with textures:', this.material.name)
+        } else {
+          // Fallback for other material types
+          this.material.side = THREE.DoubleSide
+          this.material.transparent = false
         }
       }
 
@@ -117,13 +141,16 @@ export class FishRenderer {
         this.instancedMesh.castShadow = this.config.enableShadows
         this.instancedMesh.receiveShadow = this.config.enableShadows
 
-        // Add to scene
-        this.scene.add(this.instancedMesh)
-        console.log('InstancedMesh created for', this.config.maxFishCount, 'fish')
-      }
-      
-      this.modelLoaded = true
-      console.log('Fish model loaded successfully')
+              // Add to scene
+      this.scene.add(this.instancedMesh)
+      console.log('InstancedMesh created for', this.config.maxFishCount, 'fish')
+    }
+    
+    // Optimize textures for performance
+    this.updateTextureSettings()
+    
+    this.modelLoaded = true
+    console.log('Fish model loaded successfully with textures')
     } catch (error) {
       console.error('Failed to load fish model:', error)
       // Fallback to simple geometry
@@ -135,14 +162,16 @@ export class FishRenderer {
    * Create fallback geometry if model loading fails
    */
   private createFallbackGeometry(): void {
-    // Create a simple fish-like geometry
-    const fishGeometry = new THREE.ConeGeometry(1, 4, 8)
+    // Create a more fish-like geometry
+    const fishGeometry = new THREE.ConeGeometry(0.8, 3, 12)
     fishGeometry.rotateX(Math.PI / 2) // Point forward
     
     this.geometry = fishGeometry
-    this.material = new THREE.MeshBasicMaterial({
-      color: 0xFF0000, // Bright red for visibility
-      transparent: false, // Disable transparency to avoid shader issues
+    this.material = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(0x4A90E2), // Blue fish color
+      metalness: 0.1,
+      roughness: 0.8,
+      transparent: false,
       side: THREE.DoubleSide
     })
 
@@ -155,7 +184,7 @@ export class FishRenderer {
     this.instancedMesh.frustumCulled = this.config.enableFrustumCulling
     this.scene.add(this.instancedMesh)
     this.modelLoaded = true
-    console.log('Using fallback fish geometry - RED CONES')
+    console.log('Using fallback fish geometry - Blue cones')
   }
 
   /**
@@ -260,6 +289,30 @@ export class FishRenderer {
   public updateMaterial(properties: Partial<THREE.Material>): void {
     if (this.material) {
       Object.assign(this.material, properties)
+    }
+  }
+
+  /**
+   * Update texture properties for better performance
+   */
+  public updateTextureSettings(): void {
+    if (this.material instanceof THREE.MeshStandardMaterial) {
+      // Optimize texture settings for performance
+      if (this.material.map) {
+        this.material.map.generateMipmaps = true
+        this.material.map.minFilter = THREE.LinearMipmapLinearFilter
+        this.material.map.magFilter = THREE.LinearFilter
+        this.material.map.wrapS = THREE.ClampToEdgeWrapping
+        this.material.map.wrapT = THREE.ClampToEdgeWrapping
+        console.log('Optimized base color texture')
+      }
+      
+      if (this.material.normalMap) {
+        this.material.normalMap.generateMipmaps = true
+        this.material.normalMap.minFilter = THREE.LinearMipmapLinearFilter
+        this.material.normalMap.magFilter = THREE.LinearFilter
+        console.log('Optimized normal map texture')
+      }
     }
   }
 

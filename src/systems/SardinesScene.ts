@@ -84,14 +84,25 @@ export class SardinesScene {
   }
 
   private setupLighting(): void {
-    // Simple ambient lighting for basic materials
-    const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.8)
+    // Enhanced underwater lighting for textured materials
+    const ambientLight = new THREE.AmbientLight(0x4A90E2, 0.6) // Blue ambient for underwater feel
     this.scene.add(ambientLight)
     
-    // Simple directional light
-    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.5)
-    directionalLight.position.set(100, 100, 100)
+    // Main directional light (sunlight through water)
+    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.8)
+    directionalLight.position.set(50, 200, 50)
+    directionalLight.castShadow = false // Disable shadows for performance
     this.scene.add(directionalLight)
+    
+    // Secondary fill light for better texture visibility
+    const fillLight = new THREE.DirectionalLight(0x87CEEB, 0.3) // Sky blue fill light
+    fillLight.position.set(-50, 100, -50)
+    this.scene.add(fillLight)
+    
+    // Subtle rim light for fish definition
+    const rimLight = new THREE.DirectionalLight(0xE6F3FF, 0.2) // Very light blue rim
+    rimLight.position.set(0, -50, 100)
+    this.scene.add(rimLight)
   }
 
   private initializeFlockManager(): void {
@@ -143,6 +154,14 @@ export class SardinesScene {
     // Set camera reference for frustum culling
     if (this.fishRenderer) {
       this.fishRenderer.setCamera(this.camera)
+      
+      // Wait for model to load and optimize textures
+      setTimeout(() => {
+        if (this.fishRenderer && this.fishRenderer.isLoaded()) {
+          this.fishRenderer.updateTextureSettings()
+          console.log('Texture optimization applied to fish renderer')
+        }
+      }, 1000) // Wait 1 second for model to load
     }
   }
 
