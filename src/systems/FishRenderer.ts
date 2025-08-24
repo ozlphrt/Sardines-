@@ -332,8 +332,13 @@ export class FishRenderer {
        // Set position
        this.tempVector.copy(fishInstance.physics.position)
        
-       // Use base rotation from physics (no additional animation for now)
+       // Force fish to stay upright - only use Y-axis rotation for turning
        const baseRotation = fishInstance.physics.rotation.clone()
+       
+       // Keep fish upright by setting X and Z rotation to 0
+       baseRotation.x = 0 // No rolling (pitch)
+       baseRotation.z = 0 // No rolling (roll)
+       // Only keep Y rotation for left/right turning
        
        // Set rotation (convert Euler to Quaternion)
        this.tempQuaternion.setFromEuler(baseRotation)
