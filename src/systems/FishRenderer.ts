@@ -291,7 +291,8 @@ export class FishRenderer {
      this.lastUpdateTime = currentTime
 
      // Update fish swimming animation time
-     this.fishAnimationTime += (currentTime - this.lastUpdateTime) * 0.001 * this.fishAnimationSpeed
+     const deltaTime = (currentTime - this.lastUpdateTime) * 0.001
+     this.fishAnimationTime += deltaTime * this.fishAnimationSpeed
 
      // Update test animation if it exists
      if (this.testMixer) {
@@ -341,6 +342,11 @@ export class FishRenderer {
        // Add slight body undulation (up and down movement)
        const bodyUndulation = Math.sin(this.fishAnimationTime * 0.5 + index * 0.05) * 0.1
        baseRotation.x += bodyUndulation
+       
+       // Debug: Log animation values for first fish only
+       if (index === 0 && Math.floor(this.fishAnimationTime * 10) % 60 === 0) {
+         console.log('Fish animation - Time:', this.fishAnimationTime.toFixed(2), 'Tail wag:', tailWag.toFixed(3), 'Body undulation:', bodyUndulation.toFixed(3))
+       }
        
        // Set rotation (convert Euler to Quaternion)
        this.tempQuaternion.setFromEuler(baseRotation)
