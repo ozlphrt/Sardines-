@@ -1,17 +1,35 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-// Types
+// Types - Updated for Phase 1 + Flocking system
 export interface BehaviorParams {
+  // Flocking parameters (matching our Fish interface)
   cohesionStrength: number
   separationStrength: number
   alignmentStrength: number
-  cohesionRadius: number
+  neighborRadius: number
   separationRadius: number
-  alignmentRadius: number
-  collisionAvoidanceStrength: number
-  edgeAvoidanceStrength: number
-  environmentalForceStrength: number
+  
+  // Force balancing
+  individualWeight: number
+  socialWeight: number
+  
+  // Core movement parameters
+  bodyLength: number
+  maxTurnRate: number
+  maxRollAngle: number
+  rollSpeed: number
+  
+  // Undulation parameters
+  undulationFrequency: number
+  undulationAmplitude: number
+  
+  // Speed parameters
+  accelerationRate: number
+  
+  // Direction change parameters
+  directionChangeInterval: number
+  turnSmoothness: number
 }
 
 export interface PhysicsParams {
@@ -34,6 +52,8 @@ export interface PerformanceData {
   averageSpeed: number
   visibleFish: number
   cullingEnabled: boolean
+  averageSize: number
+  sizeRange: { min: number; max: number }
 }
 
 export interface CameraState {
@@ -82,17 +102,35 @@ export interface SimulationStore {
   }
 }
 
-// Default values
+// Default values - Updated for Phase 1 + Flocking system
 const defaultBehavior: BehaviorParams = {
-  cohesionStrength: 1.0,
-  separationStrength: 1.5,
-  alignmentStrength: 1.0,
-  cohesionRadius: 80, // Updated for smaller space
-  separationRadius: 30, // Updated for smaller space
-  alignmentRadius: 80, // Updated for smaller space
-  collisionAvoidanceStrength: 2.0,
-  edgeAvoidanceStrength: 1.5,
-  environmentalForceStrength: 0.3,
+  // Flocking parameters
+  cohesionStrength: 0.4,
+  separationStrength: 0.8,
+  alignmentStrength: 0.6,
+  neighborRadius: 25.0,
+  separationRadius: 8.0,
+  
+  // Force balancing
+  individualWeight: 0.6,
+  socialWeight: 0.4,
+  
+  // Core movement parameters
+  bodyLength: 3.0,
+  maxTurnRate: 1.57,
+  maxRollAngle: 0.52,
+  rollSpeed: 3.0,
+  
+  // Undulation parameters
+  undulationFrequency: 3.0,
+  undulationAmplitude: 0.2,
+  
+  // Speed parameters
+  accelerationRate: 2.5,
+  
+  // Direction change parameters
+  directionChangeInterval: 4.0,
+  turnSmoothness: 0.8,
 }
 
 const defaultPhysics: PhysicsParams = {
@@ -115,6 +153,8 @@ const defaultPerformance: PerformanceData = {
   averageSpeed: 0,
   visibleFish: 0,
   cullingEnabled: false,
+  averageSize: 1.0,
+  sizeRange: { min: 1.0, max: 1.0 },
 }
 
 const defaultCamera: CameraState = {
@@ -188,47 +228,114 @@ export const useSimulationStore = create<SimulationStore>()(
         },
         
         loadPreset: (preset) => {
-          // Preset configurations
+          // Preset configurations for Phase 1 + Flocking
           const presets = {
             calm: {
-              behavior: { ...defaultBehavior, cohesionStrength: 0.3, separationStrength: 0.8 },
+              behavior: { 
+                ...defaultBehavior, 
+                cohesionStrength: 0.3, 
+                separationStrength: 0.6, 
+                alignmentStrength: 0.4,
+                socialWeight: 0.3,
+                individualWeight: 0.7
+              },
               physics: { ...defaultPhysics, maxSpeed: 30 },
-              rendering: { ...defaultRendering, fishCount: 300 },
-            },
-            tight: {
-              behavior: { ...defaultBehavior, cohesionStrength: 1.0, separationStrength: 0.5 },
-              physics: { ...defaultPhysics, maxSpeed: 50 },
-              rendering: { ...defaultRendering, fishCount: 800 },
-            },
-            scattered: {
-              behavior: { ...defaultBehavior, cohesionStrength: 0.2, separationStrength: 1.5 },
-              physics: { ...defaultPhysics, maxSpeed: 80 },
               rendering: { ...defaultRendering, fishCount: 200 },
             },
-            aggressive: {
-              behavior: { ...defaultBehavior, cohesionStrength: 2.0, separationStrength: 0.3, alignmentStrength: 1.5 },
-              physics: { ...defaultPhysics, maxSpeed: 60, maxForce: 15 },
-              rendering: { ...defaultRendering, fishCount: 400 },
-            },
-            gentle: {
-              behavior: { ...defaultBehavior, cohesionStrength: 0.5, separationStrength: 1.0, alignmentStrength: 0.8 },
-              physics: { ...defaultPhysics, maxSpeed: 25, maxForce: 8 },
+            tight: {
+              behavior: { 
+                ...defaultBehavior, 
+                cohesionStrength: 0.8, 
+                separationStrength: 0.4, 
+                alignmentStrength: 0.9,
+                socialWeight: 0.7,
+                individualWeight: 0.3,
+                separationRadius: 6.0
+              },
+              physics: { ...defaultPhysics, maxSpeed: 50 },
               rendering: { ...defaultRendering, fishCount: 250 },
             },
+            scattered: {
+              behavior: { 
+                ...defaultBehavior, 
+                cohesionStrength: 0.2, 
+                separationStrength: 1.2, 
+                alignmentStrength: 0.3,
+                socialWeight: 0.2,
+                individualWeight: 0.8,
+                neighborRadius: 15.0,
+                separationRadius: 12.0
+              },
+              physics: { ...defaultPhysics, maxSpeed: 80 },
+              rendering: { ...defaultRendering, fishCount: 150 },
+            },
+            aggressive: {
+              behavior: { 
+                ...defaultBehavior, 
+                cohesionStrength: 0.6, 
+                separationStrength: 0.3, 
+                alignmentStrength: 1.0,
+                socialWeight: 0.8,
+                individualWeight: 0.2,
+                maxTurnRate: 2.0,
+                accelerationRate: 4.0
+              },
+              physics: { ...defaultPhysics, maxSpeed: 60, maxForce: 15 },
+              rendering: { ...defaultRendering, fishCount: 200 },
+            },
+            gentle: {
+              behavior: { 
+                ...defaultBehavior, 
+                cohesionStrength: 0.5, 
+                separationStrength: 0.9, 
+                alignmentStrength: 0.7,
+                socialWeight: 0.4,
+                individualWeight: 0.6,
+                maxTurnRate: 1.0,
+                accelerationRate: 1.5
+              },
+              physics: { ...defaultPhysics, maxSpeed: 25, maxForce: 8 },
+              rendering: { ...defaultRendering, fishCount: 180 },
+            },
             chaotic: {
-              behavior: { ...defaultBehavior, cohesionStrength: 0.1, separationStrength: 2.0, alignmentStrength: 0.3 },
+              behavior: { 
+                ...defaultBehavior, 
+                cohesionStrength: 0.1, 
+                separationStrength: 1.5, 
+                alignmentStrength: 0.2,
+                socialWeight: 0.1,
+                individualWeight: 0.9,
+                directionChangeInterval: 2.0,
+                maxTurnRate: 2.5
+              },
               physics: { ...defaultPhysics, maxSpeed: 70, maxForce: 20 },
-              rendering: { ...defaultRendering, fishCount: 350 },
+              rendering: { ...defaultRendering, fishCount: 120 },
             },
             organized: {
-              behavior: { ...defaultBehavior, cohesionStrength: 1.5, separationStrength: 0.8, alignmentStrength: 1.2 },
+              behavior: { 
+                ...defaultBehavior, 
+                cohesionStrength: 0.7, 
+                separationStrength: 0.6, 
+                alignmentStrength: 1.0,
+                socialWeight: 0.8,
+                individualWeight: 0.2,
+                neighborRadius: 30.0,
+                turnSmoothness: 0.9
+              },
               physics: { ...defaultPhysics, maxSpeed: 45, maxForce: 12 },
-              rendering: { ...defaultRendering, fishCount: 600 },
+              rendering: { ...defaultRendering, fishCount: 220 },
             },
             minimal: {
-              behavior: { ...defaultBehavior, cohesionStrength: 0.8, separationStrength: 1.2, alignmentStrength: 0.6 },
+              behavior: { 
+                ...defaultBehavior, 
+                cohesionStrength: 0.6, 
+                separationStrength: 1.0, 
+                alignmentStrength: 0.5,
+                socialWeight: 0.5,
+                individualWeight: 0.5
+              },
               physics: { ...defaultPhysics, maxSpeed: 35, maxForce: 9 },
-              rendering: { ...defaultRendering, fishCount: 150 },
+              rendering: { ...defaultRendering, fishCount: 100 },
             },
           }
           
@@ -328,17 +435,14 @@ export const useSimulationStore = create<SimulationStore>()(
         ui: state.ui,
       }),
       onRehydrateStorage: () => (state) => {
-        // Migrate old store data to include new physics parameters
+        // Migrate old store data to new Phase 1 + Flocking parameters
         if (state && state.parameters && state.parameters.behavior) {
           const behavior = state.parameters.behavior
-          if (behavior.collisionAvoidanceStrength === undefined) {
-            behavior.collisionAvoidanceStrength = defaultBehavior.collisionAvoidanceStrength
-          }
-          if (behavior.edgeAvoidanceStrength === undefined) {
-            behavior.edgeAvoidanceStrength = defaultBehavior.edgeAvoidanceStrength
-          }
-          if (behavior.environmentalForceStrength === undefined) {
-            behavior.environmentalForceStrength = defaultBehavior.environmentalForceStrength
+          
+          // Migrate to new parameter structure if needed
+          if (behavior.neighborRadius === undefined) {
+            // Reset to default behavior for major structure change
+            state.parameters.behavior = defaultBehavior
           }
         }
       },

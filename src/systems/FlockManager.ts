@@ -13,6 +13,8 @@ export interface FlockStats {
   fishCount: number
   averageSpeed: number
   activeFish: number
+  averageSize: number
+  sizeRange: { min: number; max: number }
 }
 
 export class FlockManager {
@@ -49,14 +51,16 @@ export class FlockManager {
   }
 
   /**
-   * Update all fish (does nothing for static fish)
+   * Update all fish with individual movement + flocking behavior + boundary avoidance
    */
   public update(deltaTime: number): void {
     if (this.isPaused) return
 
-    // Fish are static - no updates needed
+    // Update each fish with access to all other fish for flocking and bounds for boundary avoidance
     this.fish.forEach(fish => {
-      fish.update(deltaTime)
+      // Pass all other fish as potential neighbors and bounds for edge avoidance
+      const otherFish = this.fish.filter(otherFish => otherFish !== fish)
+      fish.update(deltaTime, otherFish, this.config.bounds)
     })
   }
 
@@ -68,16 +72,36 @@ export class FlockManager {
   }
 
   /**
-   * Get fish statistics
+   * Get fish statistics including size variation
    */
   public getStats(): FlockStats {
+    if (this.fish.length === 0) {
+      return {
+        fishCount: 0,
+        averageSpeed: 0,
+        activeFish: 0,
+        averageSize: 1.0,
+        sizeRange: { min: 1.0, max: 1.0 }
+      }
+    }
+
+    // Calculate speed statistics
     const totalSpeed = this.fish.reduce((sum, fish) => sum + fish.getSpeed(), 0)
-    const averageSpeed = this.fish.length > 0 ? totalSpeed / this.fish.length : 0
+    const averageSpeed = totalSpeed / this.fish.length
+
+    // Calculate size statistics
+    const sizes = this.fish.map(fish => fish.getSizeFactor())
+    const totalSize = sizes.reduce((sum, size) => sum + size, 0)
+    const averageSize = totalSize / this.fish.length
+    const minSize = Math.min(...sizes)
+    const maxSize = Math.max(...sizes)
 
     return {
       fishCount: this.fish.length,
       averageSpeed: averageSpeed,
-      activeFish: this.fish.length
+      activeFish: this.fish.length,
+      averageSize: averageSize,
+      sizeRange: { min: minSize, max: maxSize }
     }
   }
 

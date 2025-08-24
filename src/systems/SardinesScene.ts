@@ -13,6 +13,8 @@ export interface SceneStats {
   averageSpeed: number
   visibleFish: number
   cullingEnabled: boolean
+  averageSize: number
+  sizeRange: { min: number; max: number }
 }
 
 export class SardinesScene {
@@ -88,6 +90,9 @@ export class SardinesScene {
     
     // Add boundary visualization after flock manager is ready
     this.addBoundaryVisualization()
+    
+    // Subscribe to store changes for live parameter updates
+    this.subscribeToStoreChanges()
   }
 
   private setupLighting(): void {
@@ -134,7 +139,18 @@ export class SardinesScene {
       
       // Direction change parameters
       directionChangeInterval: 4.0, // 4 seconds between changes
-      turnSmoothness: 0.8           // 0.8 smoothness factor
+      turnSmoothness: 0.8,          // 0.8 smoothness factor
+      
+      // Flocking parameters
+      neighborRadius: 25.0,         // Detection radius for neighbors
+      separationRadius: 8.0,        // Minimum distance to maintain
+      cohesionStrength: 0.4,        // Attraction to group center
+      separationStrength: 0.8,      // Avoidance of crowding
+      alignmentStrength: 0.6,       // Velocity matching strength
+      
+      // Force balancing
+      individualWeight: 0.6,        // Weight of individual behavior
+      socialWeight: 0.4             // Weight of flocking behavior
     }
     
     const config: FlockConfig = {
@@ -200,9 +216,40 @@ export class SardinesScene {
   }
 
   private addBoundaryVisualization(): void {
-    // Boundary visualization removed as requested
-    // Fish now swim in a more natural, unbounded environment
-    console.log('Boundary visualization disabled - fish swim in natural environment')
+    if (!this.flockManager) return
+    
+    const bounds = this.flockManager.getConfig().bounds
+    
+    // Create wireframe box to show swimming boundaries
+    const size = new THREE.Vector3()
+    bounds.getSize(size)
+    
+    const center = new THREE.Vector3()
+    bounds.getCenter(center)
+    
+    // Create box geometry
+    const boxGeometry = new THREE.BoxGeometry(size.x, size.y, size.z)
+    const boxMaterial = new THREE.MeshBasicMaterial({
+      color: 0x4A90E2,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.15
+    })
+    
+    const boundaryBox = new THREE.Mesh(boxGeometry, boxMaterial)
+    boundaryBox.position.copy(center)
+    
+    // Add to scene
+    this.scene.add(boundaryBox)
+    
+    console.log('Swimming boundaries restored:', {
+      center: center,
+      size: size,
+      bounds: {
+        min: bounds.min,
+        max: bounds.max
+      }
+    })
   }
 
   private handleResize(): void {
@@ -404,7 +451,9 @@ export class SardinesScene {
       fishCount: flockStats?.activeFish || 0,
       averageSpeed: flockStats?.averageSpeed || 0,
       visibleFish: rendererStats?.visibleFish || 0,
-      cullingEnabled: rendererStats?.cullingEnabled || false
+      cullingEnabled: rendererStats?.cullingEnabled || false,
+      averageSize: flockStats?.averageSize || 1.0,
+      sizeRange: flockStats?.sizeRange || { min: 1.0, max: 1.0 }
     }
   }
 
@@ -439,6 +488,49 @@ export class SardinesScene {
     if (this.renderer.domElement.parentElement) {
       this.renderer.domElement.parentElement.removeChild(this.renderer.domElement)
     }
+  }
 
+  /**
+   * Subscribe to store changes for live parameter updates
+   */
+  private subscribeToStoreChanges(): void {
+    // Subscribe to store changes to update fish behavior in real-time
+    useSimulationStore.subscribe((state) => {
+      if (this.flockManager) {
+        // Convert store parameters to Fish behavior format
+        const fishBehavior: FishBehavior = {
+          // Core movement parameters
+          bodyLength: state.parameters.behavior.bodyLength,
+          maxTurnRate: state.parameters.behavior.maxTurnRate,
+          maxRollAngle: state.parameters.behavior.maxRollAngle,
+          rollSpeed: state.parameters.behavior.rollSpeed,
+          
+          // Undulation parameters
+          undulationFrequency: state.parameters.behavior.undulationFrequency,
+          undulationAmplitude: state.parameters.behavior.undulationAmplitude,
+          
+          // Speed parameters
+          accelerationRate: state.parameters.behavior.accelerationRate,
+          
+          // Direction change parameters
+          directionChangeInterval: state.parameters.behavior.directionChangeInterval,
+          turnSmoothness: state.parameters.behavior.turnSmoothness,
+          
+          // Flocking parameters
+          neighborRadius: state.parameters.behavior.neighborRadius,
+          separationRadius: state.parameters.behavior.separationRadius,
+          cohesionStrength: state.parameters.behavior.cohesionStrength,
+          separationStrength: state.parameters.behavior.separationStrength,
+          alignmentStrength: state.parameters.behavior.alignmentStrength,
+          
+          // Force balancing
+          individualWeight: state.parameters.behavior.individualWeight,
+          socialWeight: state.parameters.behavior.socialWeight
+        }
+        
+        // Update all fish with new behavior parameters
+        this.flockManager.updateBehavior(fishBehavior)
+      }
+    })
   }
 }

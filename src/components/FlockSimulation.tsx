@@ -5,7 +5,7 @@ import { SardinesScene } from '../systems/SardinesScene'
 const FlockSimulation: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<SardinesScene | null>(null)
-  const { parameters, performance, camera, actions } = useSimulationStore()
+  const { performance, camera, actions } = useSimulationStore()
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -43,37 +43,8 @@ const FlockSimulation: React.FC = () => {
     }
   }, [actions])
 
-  // Update scene when parameters change
-            useEffect(() => {
-            if (sceneRef.current) {
-              // Convert store parameters to the format expected by SardinesScene
-                          const sceneParameters = {
-              behavior: {
-                cohesionStrength: parameters.behavior.cohesionStrength,
-                separationStrength: parameters.behavior.separationStrength,
-                alignmentStrength: parameters.behavior.alignmentStrength,
-                cohesionRadius: parameters.behavior.cohesionRadius,
-                separationRadius: parameters.behavior.separationRadius,
-                alignmentRadius: parameters.behavior.alignmentRadius,
-                collisionAvoidanceStrength: parameters.behavior.collisionAvoidanceStrength,
-                edgeAvoidanceStrength: parameters.behavior.edgeAvoidanceStrength,
-                environmentalForceStrength: parameters.behavior.environmentalForceStrength,
-                maxSpeed: parameters.physics.maxSpeed,
-                maxForce: parameters.physics.maxForce,
-                maxAcceleration: parameters.physics.maxAcceleration,
-              },
-                flock: {
-                  fishCount: parameters.rendering.fishCount,
-                  spatialPartitioning: true,
-                  partitionSize: 50,
-                },
-                rendering: {
-                  modelScale: parameters.rendering.modelScale,
-                }
-              }
-              sceneRef.current.updateParameters(sceneParameters)
-            }
-          }, [parameters])
+  // Parameters are now automatically updated via store subscription in SardinesScene
+  // No manual parameter updates needed here
 
   // Handle pause/resume
   useEffect(() => {

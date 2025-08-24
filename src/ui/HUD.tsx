@@ -19,10 +19,10 @@ const HUD: React.FC = () => {
   return (
     <div className="absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-auto">
       <div className="glass-hud px-4 py-2 flex items-center gap-6 text-sm">
-        {/* FPS */}
-        <div className="flex items-center gap-2">
-          <span className="text-muted">FPS</span>
-          <span className={`font-mono font-semibold ${getFPSColor(performance.fps)}`}>
+        {/* FPS - Enhanced visibility */}
+        <div className="flex items-center gap-2 px-2 py-1 bg-bg2/50 rounded">
+          <span className="text-muted font-semibold">FPS</span>
+          <span className={`font-mono font-bold text-lg ${getFPSColor(performance.fps)}`}>
             {performance.fps.toFixed(0)}
           </span>
         </div>
@@ -64,6 +64,17 @@ const HUD: React.FC = () => {
           <span className="text-muted">Speed</span>
           <span className="font-mono font-semibold text-text">
             {performance.averageSpeed.toFixed(1)}
+          </span>
+        </div>
+
+        {/* Size Variation */}
+        <div className="flex items-center gap-2">
+          <span className="text-muted">Size</span>
+          <span className="font-mono font-semibold text-text">
+            {performance.averageSize.toFixed(2)}
+          </span>
+          <span className="text-xs text-muted">
+            ({performance.sizeRange.min.toFixed(1)}-{performance.sizeRange.max.toFixed(1)})
           </span>
         </div>
 
