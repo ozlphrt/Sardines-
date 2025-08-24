@@ -31,9 +31,14 @@ export class FishRenderer {
    private matrix: THREE.Matrix4 = new THREE.Matrix4()
    private sphere: THREE.Sphere = new THREE.Sphere()
    
-   // Test animation properties
-   private testMixer: THREE.AnimationMixer | null = null
-   private lastAnimationUpdateTime: number = 0
+     // Test animation properties
+  private testMixer: THREE.AnimationMixer | null = null
+  private lastAnimationUpdateTime: number = 0
+  
+  // Fish swimming animation properties
+  private fishAnimationTime: number = 0
+  private fishAnimationSpeed: number = 2.0 // Swimming speed
+  private fishTailWagAmount: number = 0.3 // How much the tail wags
 
   constructor(scene: THREE.Scene, config: FishRenderConfig) {
     this.scene = scene
@@ -157,10 +162,8 @@ export class FishRenderer {
         console.log('InstancedMesh created for', this.config.maxFishCount, 'fish')
       }
       
-      // Test animation with one fish if animations are available
-      if (gltf.animations && gltf.animations.length > 0) {
-        this.createTestAnimatedFish(gltf.scene, gltf.animations[0])
-      }
+             // Fish swimming animation is now applied to all fish in the flock
+       console.log('Fish swimming animation system ready')
     
     // Optimize textures for performance
     this.updateTextureSettings()
@@ -275,23 +278,17 @@ export class FishRenderer {
       return
     }
 
-    // Throttle updates for performance
-    const currentTime = performance.now()
-    if (currentTime - this.lastUpdateTime < this.updateInterval) {
-      return
-    }
-    this.lastUpdateTime = currentTime
-
-         // Update test animation if it exists
-     if (this.testMixer) {
-       const deltaTime = (currentTime - this.lastAnimationUpdateTime) / 1000
-       this.testMixer.update(deltaTime)
-       this.lastAnimationUpdateTime = currentTime
-       // Log animation update every 60 frames (once per second at 60fps)
-       if (Math.floor(currentTime / 1000) % 1 === 0 && Math.floor(currentTime) % 60 === 0) {
-         console.log('Test animation updated, deltaTime:', deltaTime.toFixed(3))
-       }
+         // Throttle updates for performance
+     const currentTime = performance.now()
+     if (currentTime - this.lastUpdateTime < this.updateInterval) {
+       return
      }
+     this.lastUpdateTime = currentTime
+
+     // Update fish swimming animation time
+     this.fishAnimationTime += (currentTime - this.lastUpdateTime) * 0.001 * this.fishAnimationSpeed
+
+     // Fish swimming animation is handled in the matrix update loop below
 
     // Update frustum for culling
     if (this.config.enableFrustumCulling && this.camera) {
@@ -313,32 +310,43 @@ export class FishRenderer {
     const fishToRender = visibleFish.slice(0, Math.min(this.config.maxFishCount, 500)) // Hard limit for performance
     this.instancedMesh.count = fishToRender.length
 
-    // Batch update matrices for better performance
-    fishToRender.forEach((fishInstance, index) => {
-      // Set position
-      this.tempVector.copy(fishInstance.physics.position)
-      
-      // Set rotation (convert Euler to Quaternion)
-      this.tempQuaternion.setFromEuler(fishInstance.physics.rotation)
-      
-      // Set scale with LOD optimization
-      let scale = fishInstance.physics.scale.clone().multiplyScalar(this.config.scale)
-      
-      // Apply LOD scaling for distant fish (simplified for performance)
-      if (this.config.enableLOD && this.camera) {
-        const distance = this.tempVector.distanceTo(this.camera.position)
-        if (distance > this.config.lodDistance) {
-          const lodScale = Math.max(0.3, this.config.lodDistance / distance)
-          scale.multiplyScalar(lodScale)
-        }
-      }
-      
-      // Update matrix
-      this.matrix.compose(this.tempVector, this.tempQuaternion, scale)
-      
-      // Set instance matrix
-      this.instancedMesh.setMatrixAt(index, this.matrix)
-    })
+         // Batch update matrices for better performance
+     fishToRender.forEach((fishInstance, index) => {
+       // Set position
+       this.tempVector.copy(fishInstance.physics.position)
+       
+       // Create swimming animation rotation
+       const baseRotation = fishInstance.physics.rotation.clone()
+       
+       // Add tail-wagging animation (gentle side-to-side movement)
+       const tailWag = Math.sin(this.fishAnimationTime + index * 0.1) * this.fishTailWagAmount
+       baseRotation.z += tailWag
+       
+       // Add slight body undulation (up and down movement)
+       const bodyUndulation = Math.sin(this.fishAnimationTime * 0.5 + index * 0.05) * 0.1
+       baseRotation.x += bodyUndulation
+       
+       // Set rotation (convert Euler to Quaternion)
+       this.tempQuaternion.setFromEuler(baseRotation)
+       
+       // Set scale with LOD optimization
+       let scale = fishInstance.physics.scale.clone().multiplyScalar(this.config.scale)
+       
+       // Apply LOD scaling for distant fish (simplified for performance)
+       if (this.config.enableLOD && this.camera) {
+         const distance = this.tempVector.distanceTo(this.camera.position)
+         if (distance > this.config.lodDistance) {
+           const lodScale = Math.max(0.3, this.config.lodDistance / distance)
+           scale.multiplyScalar(lodScale)
+         }
+       }
+       
+       // Update matrix
+       this.matrix.compose(this.tempVector, this.tempQuaternion, scale)
+       
+       // Set instance matrix
+       this.instancedMesh.setMatrixAt(index, this.matrix)
+     })
 
     // Mark instances as needing update
     this.instancedMesh.instanceMatrix.needsUpdate = true
