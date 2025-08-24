@@ -30,6 +30,9 @@ export class FishRenderer {
   private frustum: THREE.Frustum = new THREE.Frustum()
   private matrix: THREE.Matrix4 = new THREE.Matrix4()
   private sphere: THREE.Sphere = new THREE.Sphere()
+  
+  // Test animation properties
+  private testMixer: THREE.AnimationMixer | null = null
 
   constructor(scene: THREE.Scene, config: FishRenderConfig) {
     this.scene = scene
@@ -54,6 +57,13 @@ export class FishRenderer {
       const gltf = await loader.loadAsync(this.config.modelPath)
       
       console.log('GLTF loaded, scene children:', gltf.scene.children.length)
+      
+      // Check for animations first
+      if (gltf.animations && gltf.animations.length > 0) {
+        console.log('Found animations:', gltf.animations.map(anim => anim.name))
+        console.log('Animation duration:', gltf.animations[0].duration)
+        console.log('Animation tracks:', gltf.animations[0].tracks.length)
+      }
       
       // Get the first mesh from the model
       const model = gltf.scene
@@ -146,6 +156,11 @@ export class FishRenderer {
       console.log('InstancedMesh created for', this.config.maxFishCount, 'fish')
     }
     
+    // Test animation with one fish if animations are available
+    if (gltf.animations && gltf.animations.length > 0) {
+      this.createTestAnimatedFish(gltf.scene, gltf.animations[0])
+    }
+    
     // Optimize textures for performance
     this.updateTextureSettings()
     
@@ -155,6 +170,40 @@ export class FishRenderer {
       console.error('Failed to load fish model:', error)
       // Fallback to simple geometry
       this.createFallbackGeometry()
+    }
+  }
+
+  /**
+   * Create a test animated fish to verify animation works
+   */
+  private createTestAnimatedFish(model: THREE.Group, animation: THREE.AnimationClip): void {
+    try {
+      console.log('Creating test animated fish...')
+      
+      // Clone the model for the test fish
+      const testFish = model.clone()
+      
+      // Position it away from the flock
+      testFish.position.set(50, 0, 50)
+      testFish.scale.setScalar(this.config.scale)
+      
+      // Create animation mixer for this fish
+      const mixer = new THREE.AnimationMixer(testFish)
+      
+      // Play the animation
+      const action = mixer.clipAction(animation)
+      action.setLoop(THREE.LoopRepeat, Infinity)
+      action.play()
+      
+      // Store mixer for updates
+      this.testMixer = mixer
+      
+      // Add to scene
+      this.scene.add(testFish)
+      
+      console.log('Test animated fish created and added to scene')
+    } catch (error) {
+      console.error('Failed to create test animated fish:', error)
     }
   }
 
@@ -208,6 +257,12 @@ export class FishRenderer {
       return
     }
     this.lastUpdateTime = currentTime
+
+    // Update test animation if it exists
+    if (this.testMixer) {
+      const deltaTime = (currentTime - this.lastUpdateTime) / 1000
+      this.testMixer.update(deltaTime)
+    }
 
     // Update frustum for culling
     if (this.config.enableFrustumCulling && this.camera) {
