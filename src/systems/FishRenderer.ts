@@ -335,17 +335,13 @@ export class FishRenderer {
        // Create swimming animation rotation
        const baseRotation = fishInstance.physics.rotation.clone()
        
-       // Add gentle swimming motion (side-to-side body sway)
-       const bodySway = Math.sin(this.fishAnimationTime + index * 0.1) * 0.15
-       baseRotation.y += bodySway
-       
-       // Add slight up-and-down undulation for swimming motion
+       // Add gentle up-and-down undulation for swimming motion only
        const bodyUndulation = Math.sin(this.fishAnimationTime * 0.8 + index * 0.05) * 0.08
        baseRotation.x += bodyUndulation
        
        // Debug: Log animation values for first fish only
        if (index === 0 && Math.floor(this.fishAnimationTime * 10) % 60 === 0) {
-         console.log('Fish animation - Time:', this.fishAnimationTime.toFixed(2), 'Body sway:', bodySway.toFixed(3), 'Body undulation:', bodyUndulation.toFixed(3))
+         console.log('Fish animation - Time:', this.fishAnimationTime.toFixed(2), 'Body undulation:', bodyUndulation.toFixed(3))
        }
        
        // Set rotation (convert Euler to Quaternion)
