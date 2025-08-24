@@ -106,11 +106,17 @@ export class Fish {
     // Calculate environmental responses
     const environmentalForce = this.calculateEnvironmentalForce(bounds)
     
-    // Combine all forces
+    // Combine all forces (prioritize flocking)
     const totalForce = new THREE.Vector3()
-    totalForce.add(swimMotion)
-    totalForce.add(socialForce)
+    
+    // Social forces (flocking) should dominate
+    totalForce.add(socialForce.clone().multiplyScalar(3.0))
+    
+    // Environmental forces (boundaries)
     totalForce.add(environmentalForce)
+    
+    // Individual swimming motion (minimal)
+    totalForce.add(swimMotion.clone().multiplyScalar(0.3))
     
     // Apply personality modifiers
     totalForce.multiplyScalar(this.physics.personality.speedMultiplier)
@@ -154,9 +160,9 @@ export class Fish {
   private calculateSwimMotion(deltaTime: number): THREE.Vector3 {
     const force = new THREE.Vector3()
     
-    // Forward swimming motion (reduced to let flocking dominate)
+    // Forward swimming motion (very weak to let flocking dominate)
     const forwardForce = this.physics.targetDirection.clone().multiplyScalar(
-      this.behavior.maxSpeed * 0.05
+      this.behavior.maxSpeed * 0.01
     )
     force.add(forwardForce)
     
@@ -338,7 +344,7 @@ export class Fish {
    */
   public changeDirection(): void {
     const now = performance.now()
-    if (now - this.physics.lastDirectionChange > 5000 + Math.random() * 5000) { // 5-10 seconds
+    if (now - this.physics.lastDirectionChange > 10000 + Math.random() * 10000) { // 10-20 seconds
       this.physics.targetDirection.set(
         (Math.random() - 0.5) * 2,
         (Math.random() - 0.5) * 2,

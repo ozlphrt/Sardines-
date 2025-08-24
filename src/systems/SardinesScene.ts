@@ -130,11 +130,11 @@ export class SardinesScene {
       depthPreference: -10,
       depthVariation: 15,
       
-      // Social behavior (enhanced flocking)
-      neighborRadius: 35,
-      neighborInfluence: 0.8,
-      separationRadius: 12,
-      separationStrength: 2.0,
+      // Social behavior (strong flocking)
+      neighborRadius: 50,
+      neighborInfluence: 2.0,
+      separationRadius: 15,
+      separationStrength: 3.0,
       
       // Environmental response
       edgeAvoidanceRadius: 20,
