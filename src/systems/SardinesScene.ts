@@ -27,7 +27,8 @@ export class SardinesScene {
   private isPaused: boolean = false
   private lastTime: number = 0
   private currentCameraMode: string = 'default'
-  private cameraTargetPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0)
+  // Camera target for future camera controls
+  // private cameraTargetPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0)
   private cameraLerpFactor: number = 0.02
 
   private frameTimeHistory: number[] = []
@@ -118,27 +119,22 @@ export class SardinesScene {
     )
     
     const defaultBehavior: FishBehavior = {
-      // Basic movement parameters
-      maxSpeed: 15,
-      minSpeed: 6,
-      acceleration: 10,
-      turnSpeed: 2.5,
+      // Phase 1 - Core movement parameters
+      bodyLength: 3.0,              // Fish body length in world units
+      maxTurnRate: 1.57,            // 90°/s maximum turn rate
+      maxRollAngle: 0.52,           // 30° maximum roll angle
+      rollSpeed: 3.0,               // 3 rad/s roll speed
       
-      // Natural swimming behavior
-      swimFrequency: 2.0,
-      swimAmplitude: 0.2,
-      depthPreference: -10,
-      depthVariation: 15,
+      // Undulation parameters
+      undulationFrequency: 3.0,     // 3 Hz base frequency
+      undulationAmplitude: 0.2,     // 0.2 body length amplitude
       
-      // Social behavior (strong flocking)
-      neighborRadius: 50,
-      neighborInfluence: 2.0,
-      separationRadius: 15,
-      separationStrength: 3.0,
+      // Speed parameters
+      accelerationRate: 2.5,        // 2.5 BL/s² acceleration
       
-      // Environmental response
-      edgeAvoidanceRadius: 20,
-      edgeAvoidanceStrength: 1.0
+      // Direction change parameters
+      directionChangeInterval: 4.0, // 4 seconds between changes
+      turnSmoothness: 0.8           // 0.8 smoothness factor
     }
     
     const config: FlockConfig = {

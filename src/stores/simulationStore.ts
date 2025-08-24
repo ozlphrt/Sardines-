@@ -134,7 +134,7 @@ const defaultUI: UIState = {
 // Store creation
 export const useSimulationStore = create<SimulationStore>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       ui: defaultUI,
       
       parameters: {
@@ -262,10 +262,10 @@ export const useSimulationStore = create<SimulationStore>()(
           
           const selectedCameraPreset = cameraPresets[preset as keyof typeof cameraPresets]
           if (selectedCameraPreset) {
-            set((state) => ({
+            set((_state) => ({
               camera: selectedCameraPreset,
               ui: {
-                ...state.ui,
+                ..._state.ui,
                 selectedCameraPreset: preset,
               },
             }))
@@ -279,7 +279,7 @@ export const useSimulationStore = create<SimulationStore>()(
         },
         
         updateCamera: (camera) => {
-          set((state) => ({
+          set((_state) => ({
             camera,
           }))
         },

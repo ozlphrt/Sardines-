@@ -73,9 +73,125 @@
 
 ---
 
-## 🎨 Phase 2: 3D Rendering & Fish Models
+## 🐟 Phase 2: Individual Sardine Motion System
 
-### T2.1: Basic 3D Scene Setup
+### T2.1: New Individual Motion Architecture
+- **Description**: Replace existing fish movement with realistic sardine characteristics
+- **Completion Criteria**:
+  - New Fish.ts with SardineMovement interface
+  - Five core movement systems: Undulation, Roll, Speed, Direction, Depth
+  - Modular design for step-by-step testing
+  - Personality traits for individual variation
+  - SpeedMode enum for realistic behavior patterns
+- **Dependencies**: T1.4
+- **Priority**: P0
+- **Difficulty**: Medium
+- **Time Estimate**: 6 hours
+- **Risk Level**: Medium
+- **Scope**: Complete replacement of movement system
+- **Status**: [DONE] ✅
+
+### T2.2: Step 1 - Undulation System Testing
+- **Description**: Test and validate body wave motion system
+- **Completion Criteria**:
+  - Undulation phase updates correctly (2-4 Hz frequency)
+  - Amplitude varies with swimming speed
+  - Personality modifiers affect undulation
+  - Visual debugging shows wave motion
+  - No performance impact on 500+ fish
+- **Dependencies**: T2.1
+- **Priority**: P0
+- **Difficulty**: Easy
+- **Time Estimate**: 2 hours
+- **Risk Level**: Low
+- **Scope**: Undulation system only
+- **Status**: [TODO]
+
+### T2.3: Step 2 - Roll System Testing
+- **Description**: Test lateral tilting during direction changes
+- **Completion Criteria**:
+  - Fish roll during turns (15-45° maximum)
+  - Smooth roll interpolation
+  - Roll angle affects visual rotation
+  - Personality modifiers affect roll behavior
+  - No excessive rolling during straight swimming
+- **Dependencies**: T2.2
+- **Priority**: P1
+- **Difficulty**: Easy
+- **Time Estimate**: 2 hours
+- **Risk Level**: Low
+- **Scope**: Roll system only
+- **Status**: [TODO]
+
+### T2.4: Step 3 - Speed Variation Testing
+- **Description**: Test natural speed changes and mode transitions
+- **Completion Criteria**:
+  - Speed modes: RESTING, CRUISING, ACTIVE, ESCAPE
+  - Smooth transitions between speed modes
+  - Personality affects speed behavior
+  - Speed changes every 5-15 seconds
+  - No sudden speed jumps
+- **Dependencies**: T2.3
+- **Priority**: P1
+- **Difficulty**: Easy
+- **Time Estimate**: 2 hours
+- **Risk Level**: Low
+- **Scope**: Speed system only
+- **Status**: [TODO]
+
+### T2.5: Step 4 - Direction Change Testing
+- **Description**: Test realistic turning behavior and direction changes
+- **Completion Criteria**:
+  - Smooth direction interpolation
+  - Direction changes every 8-20 seconds
+  - Personality affects turn rate
+  - Minimum turning radius respected
+  - No sharp direction changes
+- **Dependencies**: T2.4
+- **Priority**: P1
+- **Difficulty**: Easy
+- **Time Estimate**: 2 hours
+- **Risk Level**: Low
+- **Scope**: Direction system only
+- **Status**: [TODO]
+
+### T2.6: Step 5 - Depth Control Testing
+- **Description**: Test depth preference and vertical movement
+- **Completion Criteria**:
+  - Fish maintain preferred depth ranges
+  - Smooth depth transitions
+  - Depth changes every 10-30 seconds
+  - Pressure sensitivity affects depth behavior
+  - No excessive vertical movement
+- **Dependencies**: T2.5
+- **Priority**: P1
+- **Difficulty**: Easy
+- **Time Estimate**: 2 hours
+- **Risk Level**: Low
+- **Scope**: Depth system only
+- **Status**: [TODO]
+
+### T2.7: Integration Testing - All Movement Systems
+- **Description**: Test all five movement systems working together
+- **Completion Criteria**:
+  - All systems work harmoniously
+  - No conflicts between movement components
+  - Performance maintained at 60fps with 500+ fish
+  - Natural-looking sardine movement
+  - Personality traits create individual variation
+- **Dependencies**: T2.6
+- **Priority**: P0
+- **Difficulty**: Medium
+- **Time Estimate**: 3 hours
+- **Risk Level**: Medium
+- **Scope**: Full integration testing
+- **Status**: [TODO]
+
+---
+
+## 🎨 Phase 3: 3D Rendering & Fish Models
+
+### T3.1: Basic 3D Scene Setup
 - **Description**: Create Three.js scene with camera, lighting, and basic environment
 - **Completion Criteria**:
   - Scene with proper lighting setup
@@ -86,17 +202,15 @@
 - **Priority**: P1
 - **Difficulty**: Easy
 - **Time Estimate**: 2 hours
-- **Risk Level**: Low
-- **Scope**: Scene setup only
 
-### T2.2: Fish Model Integration
+### T3.2: Fish Model Integration
 - **Description**: Load and integrate external sardine 3D model
 - **Completion Criteria**:
   - GLTF model loads without errors
   - Model scales and orients correctly
   - Textures render properly
   - Model documented in ASSET_INVENTORY.md
-- **Dependencies**: T2.1
+- **Dependencies**: T3.1
 - **Priority**: P1
 - **Difficulty**: Medium
 - **Time Estimate**: 3 hours
@@ -104,14 +218,14 @@
 - **Scope**: Model loading and basic rendering
 - **Status**: [DONE] ✅
 
-### T2.3: Instanced Fish Rendering
+### T3.3: Instanced Fish Rendering
 - **Description**: Render multiple fish efficiently using InstancedMesh
 - **Completion Criteria**:
   - 500+ fish render at 60fps
   - Each fish has unique position and rotation
   - Fish face direction of movement
   - Smooth animation without stuttering
-- **Dependencies**: T2.2, T1.2
+- **Dependencies**: T3.2, T2.7
 - **Priority**: P0
 - **Difficulty**: Hard
 - **Time Estimate**: 6 hours
@@ -121,23 +235,23 @@
 
 ---
 
-## 🎮 Phase 3: UI Controls & Interaction
+## 🎮 Phase 4: UI Controls & Interaction
 
-### T3.1: Zustand State Management
+### T4.1: Zustand State Management
 - **Description**: Set up state management for simulation parameters
 - **Completion Criteria**:
   - Centralized store for all simulation parameters
   - Persistence to localStorage
   - Real-time parameter updates
   - State debugging tools
-- **Dependencies**: T1.2
+- **Dependencies**: T2.7
 - **Priority**: P1
 - **Difficulty**: Easy
 - **Time Estimate**: 2 hours
 - **Risk Level**: Low
 - **Scope**: State management only
 
-### T3.2: UI Component Library
+### T4.2: UI Component Library
 - **Description**: Create reusable UI components following design system
 - **Completion Criteria**:
   - HoverDrag component for numeric inputs
@@ -145,22 +259,22 @@
   - HUD overlay with FPS and stats
   - Auto-hide functionality
   - Dark glass morphism theme
-- **Dependencies**: T3.1
+- **Dependencies**: T4.1
 - **Priority**: P1
 - **Difficulty**: Medium
 - **Time Estimate**: 4 hours
 - **Risk Level**: Low
 - **Scope**: UI components following design rules
 
-### T3.3: Simulation Controls
+### T4.3: Simulation Controls
 - **Description**: Add real-time parameter adjustment controls
 - **Completion Criteria**:
-  - Cohesion, separation, alignment strength sliders
+  - Individual movement system controls (undulation, roll, speed, direction, depth)
   - Fish count adjustment
-  - Speed and boundary controls
+  - Personality trait sliders
   - Pause/play functionality
   - Reset to defaults option
-- **Dependencies**: T3.2, T2.3
+- **Dependencies**: T4.2, T3.3
 - **Priority**: P1
 - **Difficulty**: Medium
 - **Time Estimate**: 3 hours
@@ -169,30 +283,30 @@
 
 ---
 
-## ⚡ Phase 4: Performance & Optimization
+## ⚡ Phase 5: Performance & Optimization
 
-### T4.1: Performance Profiling
+### T5.1: Performance Profiling
 - **Description**: Identify and resolve performance bottlenecks
 - **Completion Criteria**:
   - 60fps maintained with 500+ fish
   - Memory usage < 512MB
   - Frame time analysis documented
   - Performance metrics logged
-- **Dependencies**: T2.3, T3.3
+- **Dependencies**: T4.3
 - **Priority**: P0
 - **Difficulty**: Hard
 - **Time Estimate**: 4 hours
 - **Risk Level**: High
 - **Scope**: Performance optimization only
 
-### T4.2: Memory Management
+### T5.2: Memory Management
 - **Description**: Implement proper cleanup and memory optimization
 - **Completion Criteria**:
   - No memory leaks in 10+ minute sessions
   - Proper disposal of Three.js objects
   - Efficient geometry and material reuse
   - Memory usage monitoring
-- **Dependencies**: T4.1
+- **Dependencies**: T5.1
 - **Priority**: P1
 - **Difficulty**: Medium
 - **Time Estimate**: 3 hours
@@ -201,9 +315,9 @@
 
 ---
 
-## 🧪 Phase 5: Testing & Documentation
+## 🧪 Phase 6: Testing & Documentation
 
-### T5.1: Playwright Smoke Tests
+### T6.1: Playwright Smoke Tests
 - **Description**: Create automated UI tests for core functionality
 - **Completion Criteria**:
   - App loads without console errors
@@ -211,21 +325,21 @@
   - Simulation runs smoothly
   - Accessibility checks pass
   - Performance benchmarks recorded
-- **Dependencies**: T4.2
+- **Dependencies**: T5.2
 - **Priority**: P1
 - **Difficulty**: Medium
 - **Time Estimate**: 3 hours
 - **Risk Level**: Low
 - **Scope**: Automated testing only
 
-### T5.2: Documentation Completion
+### T6.2: Documentation Completion
 - **Description**: Finalize all documentation files
 - **Completion Criteria**:
   - All required markdown files complete
   - Code comments and API documentation
   - Setup guide with clear instructions
   - Performance logs and optimization notes
-- **Dependencies**: T5.1
+- **Dependencies**: T6.1
 - **Priority**: P2
 - **Difficulty**: Easy
 - **Time Estimate**: 2 hours
@@ -236,22 +350,22 @@
 
 ## 📊 Current Progress Summary
 
-### Completed Tasks: 6/13
-### In Progress: 0
+### Completed Tasks: 12/18
+### In Progress: 1
 ### Blocked: 0
 ### Next 3 Tasks:
-1. **T3.1**: Zustand State Management (P1, Easy, 2hrs)
-2. **T3.2**: UI Component Library (P1, Medium, 4hrs)
-3. **T3.3**: Simulation Controls (P1, Medium, 3hrs)
+1. **T2.7**: Integration Testing - All Movement Systems (P0, Medium, 3hrs) - **IN PROGRESS**
+2. **T3.1**: Enhanced 3D Fish Models (P1, Medium, 4hrs)
+3. **T3.2**: Advanced Materials & Textures (P1, Medium, 3hrs)
 
 ### Dependencies Status:
 - ✅ No blocking dependencies
-- 🟡 Ready to start Phase 1
+- 🟡 Ready to start Phase 2 testing
 
 ### Risk Assessment:
-- **High Risk**: T2.3 (Instanced Fish Rendering) - Performance critical
-- **Medium Risk**: T1.2 (Flocking Algorithm) - Complex logic
-- **Low Risk**: All other tasks
+- **High Risk**: T3.3 (Instanced Fish Rendering) - Performance critical
+- **Medium Risk**: T2.1 (New Individual Motion Architecture) - Complete system replacement
+- **Low Risk**: All testing tasks (T2.2-T2.7)
 
 ---
 
@@ -261,7 +375,63 @@
 - **UI Responsiveness**: < 16ms input lag [ ] [IN_PROGRESS] [DONE]
 - **No Console Errors**: Clean execution [ ] [IN_PROGRESS] [DONE]
 - **Accessibility**: WCAG 2.1 AA compliance [ ] [IN_PROGRESS] [DONE]
+- **Individual Motion**: All 5 systems working harmoniously [ ] [IN_PROGRESS] [DONE]
 
 ---
+
+## 🧪 Testing Protocol for Individual Motion System
+
+### Testing Environment Setup
+- **Test Fish Count**: Start with 50 fish for individual testing, scale to 500 for performance
+- **Camera Position**: Fixed position to observe movement patterns
+- **Debug Visualization**: Add visual indicators for each movement system
+- **Performance Monitoring**: Track FPS during each test
+
+### Step-by-Step Testing Checklist
+
+#### T2.2 Undulation Testing:
+- [ ] Fish show visible body wave motion
+- [ ] Wave frequency matches 2-4 Hz range
+- [ ] Amplitude varies with swimming speed
+- [ ] No performance impact
+- [ ] Personality traits affect undulation
+
+#### T2.3 Roll Testing:
+- [ ] Fish tilt during direction changes
+- [ ] Roll angle stays within 15-45° range
+- [ ] Smooth roll interpolation
+- [ ] No rolling during straight swimming
+- [ ] Personality affects roll behavior
+
+#### T2.4 Speed Testing:
+- [ ] Speed modes transition smoothly
+- [ ] Speed changes every 5-15 seconds
+- [ ] No sudden speed jumps
+- [ ] Personality affects speed behavior
+- [ ] Speed ranges are realistic
+
+#### T2.5 Direction Testing:
+- [ ] Direction changes every 8-20 seconds
+- [ ] Smooth turning with minimum radius
+- [ ] No sharp direction changes
+- [ ] Personality affects turn rate
+- [ ] Direction changes look natural
+
+#### T2.6 Depth Testing:
+- [ ] Fish maintain preferred depth ranges
+- [ ] Depth changes every 10-30 seconds
+- [ ] Smooth vertical movement
+- [ ] No excessive vertical motion
+- [ ] Pressure sensitivity works
+
+#### T2.7 Integration Testing:
+- [ ] All systems work together
+- [ ] No conflicts between components
+- [ ] Natural-looking sardine movement
+- [ ] Individual personality variation
+- [ ] Performance maintained at 60fps
+
+---
+
 *Last Updated: $(date)*
 *Next Review: Every 2-3 hours during active development*

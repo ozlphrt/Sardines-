@@ -26,13 +26,13 @@ export class FlockManager {
   }
 
   /**
-   * Initialize fish with random positions within bounds
+   * Initialize static fish with random positions within bounds
    */
   private initializeFish(): void {
     const bounds = this.config.bounds
     const behavior = this.config.behavior
 
-    console.log('Initializing', this.config.fishCount, 'fish with natural movement behavior')
+    console.log('Initializing', this.config.fishCount, 'static fish')
 
     for (let i = 0; i < this.config.fishCount; i++) {
       const position = new THREE.Vector3(
@@ -41,50 +41,43 @@ export class FlockManager {
         bounds.min.z + Math.random() * (bounds.max.z - bounds.min.z)
       )
 
-      const fish = new Fish(i, position, behavior)
+      const fish = new Fish(position, behavior)
       this.fish.push(fish)
     }
     
-    console.log('Created', this.fish.length, 'fish with individual personalities')
+    console.log('Created', this.fish.length, 'static fish')
   }
 
   /**
-   * Update all fish with natural movement
+   * Update all fish (does nothing for static fish)
    */
   public update(deltaTime: number): void {
     if (this.isPaused) return
 
-    // Update each fish individually
+    // Fish are static - no updates needed
     this.fish.forEach(fish => {
-      if (fish.isActive) {
-        // Update fish movement
-        fish.update(deltaTime, this.fish, this.config.bounds)
-        
-        // Occasionally change direction for natural behavior
-        fish.changeDirection()
-      }
+      fish.update(deltaTime)
     })
   }
 
   /**
-   * Get all active fish
+   * Get all fish
    */
   public getFish(): Fish[] {
-    return this.fish.filter(fish => fish.isActive)
+    return this.fish
   }
 
   /**
    * Get fish statistics
    */
   public getStats(): FlockStats {
-    const activeFish = this.fish.filter(fish => fish.isActive)
-    const totalSpeed = activeFish.reduce((sum, fish) => sum + fish.getSpeed(), 0)
-    const averageSpeed = activeFish.length > 0 ? totalSpeed / activeFish.length : 0
+    const totalSpeed = this.fish.reduce((sum, fish) => sum + fish.getSpeed(), 0)
+    const averageSpeed = this.fish.length > 0 ? totalSpeed / this.fish.length : 0
 
     return {
       fishCount: this.fish.length,
       averageSpeed: averageSpeed,
-      activeFish: activeFish.length
+      activeFish: this.fish.length
     }
   }
 
@@ -105,70 +98,65 @@ export class FlockManager {
   }
 
   /**
-   * Set pause state
+   * Pause/unpause flock updates
    */
   public setPaused(paused: boolean): void {
     this.isPaused = paused
   }
 
   /**
-   * Reset all fish to random positions
+   * Get flock configuration
    */
-  public reset(): void {
-    const bounds = this.config.bounds
-    
-    this.fish.forEach(fish => {
-      const position = new THREE.Vector3(
-        bounds.min.x + Math.random() * (bounds.max.x - bounds.min.x),
-        bounds.min.y + Math.random() * (bounds.max.y - bounds.min.y),
-        bounds.min.z + Math.random() * (bounds.max.z - bounds.min.z)
-      )
-      
-      fish.physics.position.copy(position)
-      fish.physics.velocity.set(
-        (Math.random() - 0.5) * fish.behavior.maxSpeed * 0.5,
-        (Math.random() - 0.5) * fish.behavior.maxSpeed * 0.3,
-        (Math.random() - 0.5) * fish.behavior.maxSpeed * 0.5
-      )
-    })
+  public getConfig(): FlockConfig {
+    return { ...this.config }
   }
 
   /**
-   * Add new fish
+   * Get fish count
    */
-  public addFish(count: number = 1): void {
+  public getFishCount(): number {
+    return this.fish.length
+  }
+
+  /**
+   * Add fish to the flock
+   */
+  public addFish(count: number): void {
     const bounds = this.config.bounds
     const behavior = this.config.behavior
-    
+
     for (let i = 0; i < count; i++) {
       const position = new THREE.Vector3(
         bounds.min.x + Math.random() * (bounds.max.x - bounds.min.x),
         bounds.min.y + Math.random() * (bounds.max.y - bounds.min.y),
         bounds.min.z + Math.random() * (bounds.max.z - bounds.min.z)
       )
-      
-      const newId = this.fish.length
-      const fish = new Fish(newId, position, behavior)
+
+      const fish = new Fish(position, behavior)
       this.fish.push(fish)
     }
   }
 
   /**
-   * Remove fish
+   * Remove fish from the flock
    */
-  public removeFish(count: number = 1): void {
-    const activeFish = this.fish.filter(fish => fish.isActive)
-    const toRemove = Math.min(count, activeFish.length)
-    
-    for (let i = 0; i < toRemove; i++) {
-      activeFish[i].isActive = false
-    }
+  public removeFish(count: number): void {
+    const removeCount = Math.min(count, this.fish.length)
+    this.fish.splice(-removeCount)
   }
 
   /**
-   * Get configuration
+   * Clear all fish
    */
-  public getConfig(): FlockConfig {
-    return { ...this.config }
+  public clearFish(): void {
+    this.fish = []
+  }
+
+  /**
+   * Dispose of flock resources
+   */
+  public dispose(): void {
+    this.fish.forEach(fish => fish.dispose())
+    this.fish = []
   }
 }

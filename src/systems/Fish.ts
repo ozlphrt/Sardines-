@@ -1,378 +1,421 @@
 import * as THREE from 'three'
 
-export interface FishBehavior {
-  // Basic movement parameters
-  maxSpeed: number
-  minSpeed: number
-  acceleration: number
-  turnSpeed: number
-  
-  // Natural swimming behavior
-  swimFrequency: number
-  swimAmplitude: number
-  depthPreference: number
-  depthVariation: number
-  
-  // Social behavior (simplified)
-  neighborRadius: number
-  neighborInfluence: number
-  separationRadius: number
-  separationStrength: number
-  
-  // Environmental response
-  edgeAvoidanceRadius: number
-  edgeAvoidanceStrength: number
+// ============================================================================
+// PHASE 1 - CORE MOVEMENT SYSTEM
+// ============================================================================
+
+/**
+ * Speed modes for realistic sardine behavior (Body Lengths per second)
+ */
+export enum SpeedMode {
+  RESTING = 0.5,    // 0.5-1 BL/s - minimal movement
+  CRUISING = 1.5,   // 1-2 BL/s - normal swimming
+  ACTIVE = 2.5,     // 2-3 BL/s - active swimming, feeding
+  BURST = 4.0       // 3-5 BL/s - maximum burst speed
 }
 
-export interface FishPhysics {
-  position: THREE.Vector3
-  velocity: THREE.Vector3
-  targetDirection: THREE.Vector3
-  rotation: THREE.Euler
-  scale: THREE.Vector3
-  
-  // Individual fish characteristics
-  personality: {
-    speedMultiplier: number
-    turnMultiplier: number
-    socialMultiplier: number
+/**
+ * Core movement characteristics for Phase 1
+ */
+export interface CoreMovement {
+  // UNDULATION (Body Wave Motion)
+  undulation: {
+    frequency: number      // 2-4 Hz - waves per second
+    amplitude: number      // 0.1-0.3 body length - wave height
+    phase: number         // Current wave phase (0 to 2π)
+    speedMultiplier: number // How swimming speed affects undulation
   }
   
-  // Swimming state
-  swimPhase: number
-  targetDepth: number
-  lastDirectionChange: number
+  // ROLL (Lateral Tilting)
+  roll: {
+    currentAngle: number   // Current roll angle in radians
+    targetAngle: number    // Target roll angle for turns
+    rollSpeed: number      // How fast fish can roll (2-5 rad/s)
+    maxRollAngle: number   // Maximum roll angle (15-45° = 0.26-0.79 rad)
+  }
+  
+  // SPEED VARIATION
+  speed: {
+    currentMode: SpeedMode // Current speed category
+    targetSpeed: number    // Target speed to transition to
+    currentSpeed: number   // Current actual speed
+    acceleration: number   // How fast speed changes (2-4 BL/s²)
+    lastModeChange: number // Time of last speed mode change
+  }
+  
+  // DIRECTION CHANGES
+  direction: {
+    currentHeading: THREE.Vector3  // Current direction vector
+    targetHeading: THREE.Vector3   // Target direction vector
+    turnRate: number       // How fast fish can turn (max 90°/s = 1.57 rad/s)
+    turnRadius: number     // Minimum turning radius (2-3 body lengths)
+    lastDirectionChange: number // Time of last direction change
+    isChangingDirection: boolean // Currently in a turn
+  }
 }
 
+/**
+ * Fish physics state
+ */
+export interface FishPhysics {
+  position: THREE.Vector3
+  rotation: THREE.Euler
+  scale: THREE.Vector3
+  velocity: THREE.Vector3
+}
+
+/**
+ * Fish behavior configuration for Phase 1
+ */
+export interface FishBehavior {
+  // Core movement parameters
+  bodyLength: number        // Fish body length in world units
+  maxTurnRate: number      // Maximum turn rate (rad/s)
+  maxRollAngle: number     // Maximum roll angle (rad)
+  rollSpeed: number        // Roll speed (rad/s)
+  
+  // Undulation parameters
+  undulationFrequency: number  // Base frequency (Hz)
+  undulationAmplitude: number  // Base amplitude (BL)
+  
+  // Speed parameters
+  accelerationRate: number     // Speed change rate (BL/s²)
+  
+  // Direction change parameters
+  directionChangeInterval: number // Seconds between direction changes
+  turnSmoothness: number          // How smooth turns are (0-1)
+}
+
+/**
+ * Phase 1 Fish class with core movement systems
+ */
 export class Fish {
   public physics: FishPhysics
   public behavior: FishBehavior
-  public id: number
-  public isActive: boolean = true
+  public movement: CoreMovement
+  private lastUpdateTime: number = 0
 
-  constructor(
-    id: number,
-    position: THREE.Vector3,
-    behavior: FishBehavior
-  ) {
-    this.id = id
-    this.behavior = { ...behavior }
+  constructor(position: THREE.Vector3, behavior: FishBehavior) {
+    this.behavior = behavior
+    this.lastUpdateTime = performance.now() * 0.001 // Convert to seconds
     
-    // Initialize physics with natural starting state
+    // Initialize physics
     this.physics = {
       position: position.clone(),
-      velocity: new THREE.Vector3(
-        (Math.random() - 0.5) * this.behavior.maxSpeed * 0.5,
-        (Math.random() - 0.5) * this.behavior.maxSpeed * 0.3,
-        (Math.random() - 0.5) * this.behavior.maxSpeed * 0.5
-      ),
-      targetDirection: new THREE.Vector3(
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2
-      ).normalize(),
-      rotation: new THREE.Euler(),
+      rotation: new THREE.Euler(0, Math.random() * Math.PI * 2, 0), // Random initial heading
       scale: new THREE.Vector3(1, 1, 1),
-      
-      // Individual personality traits
-      personality: {
-        speedMultiplier: 0.8 + Math.random() * 0.4, // 0.8 to 1.2
-        turnMultiplier: 0.7 + Math.random() * 0.6,  // 0.7 to 1.3
-        socialMultiplier: 0.5 + Math.random() * 1.0  // 0.5 to 1.5
+      velocity: new THREE.Vector3(0, 0, 0)
+    }
+    
+    // Initialize core movement systems
+    this.movement = {
+      // Undulation system
+      undulation: {
+        frequency: this.behavior.undulationFrequency,
+        amplitude: this.behavior.undulationAmplitude,
+        phase: Math.random() * Math.PI * 2, // Random starting phase
+        speedMultiplier: 1.0
       },
       
-      // Swimming state
-      swimPhase: Math.random() * Math.PI * 2,
-      targetDepth: this.behavior.depthPreference + (Math.random() - 0.5) * this.behavior.depthVariation,
-      lastDirectionChange: 0
+      // Roll system
+      roll: {
+        currentAngle: 0,
+        targetAngle: 0,
+        rollSpeed: this.behavior.rollSpeed,
+        maxRollAngle: this.behavior.maxRollAngle
+      },
+      
+      // Speed system
+      speed: {
+        currentMode: SpeedMode.CRUISING,
+        targetSpeed: SpeedMode.CRUISING,
+        currentSpeed: SpeedMode.CRUISING,
+        acceleration: this.behavior.accelerationRate,
+        lastModeChange: this.lastUpdateTime
+      },
+      
+      // Direction system
+      direction: {
+        currentHeading: new THREE.Vector3(0, 0, 1), // Start facing forward
+        targetHeading: new THREE.Vector3(0, 0, 1),
+        turnRate: this.behavior.maxTurnRate,
+        turnRadius: 2.5 * this.behavior.bodyLength, // 2.5 body lengths
+        lastDirectionChange: this.lastUpdateTime,
+        isChangingDirection: false
+      }
+    }
+    
+    // Set initial velocity based on starting speed
+    this.updateVelocityFromHeading()
+  }
+
+  /**
+   * Main update method - Phase 1 core movements
+   */
+  public update(deltaTime: number): void {
+    const currentTime = performance.now() * 0.001
+    
+    // Update all Phase 1 movement systems
+    this.updateUndulation(deltaTime, currentTime)
+    this.updateSpeedVariation(deltaTime, currentTime)
+    this.updateDirectionChanges(deltaTime, currentTime)
+    this.updateRoll(deltaTime, currentTime)
+    
+    // Apply movement to physics
+    this.updatePhysics(deltaTime)
+    
+    this.lastUpdateTime = currentTime
+  }
+
+  /**
+   * P1.1: UNDULATION - S-shaped body waves for propulsion
+   */
+  private updateUndulation(deltaTime: number, _currentTime: number): void {
+    const undulation = this.movement.undulation
+    
+    // Update undulation frequency based on speed (faster = higher frequency)
+    const speedRatio = this.movement.speed.currentSpeed / SpeedMode.BURST
+    undulation.speedMultiplier = 1.0 + speedRatio * 1.5 // 1.0x to 2.5x frequency
+    
+    // Update undulation phase
+    const effectiveFrequency = undulation.frequency * undulation.speedMultiplier
+    undulation.phase += effectiveFrequency * Math.PI * 2 * deltaTime
+    
+    // Keep phase in range [0, 2π]
+    if (undulation.phase > Math.PI * 2) {
+      undulation.phase -= Math.PI * 2
     }
   }
 
   /**
-   * Update fish movement with natural swimming behavior
+   * P1.2: SPEED VARIATION - Different swimming modes
    */
-  public update(deltaTime: number, allFish: Fish[], bounds: THREE.Box3): void {
-    if (!this.isActive) return
-
-    // Update swimming phase
-    this.physics.swimPhase += this.behavior.swimFrequency * deltaTime
+  private updateSpeedVariation(deltaTime: number, currentTime: number): void {
+    const speed = this.movement.speed
     
-    // Calculate natural swimming motion
-    const swimMotion = this.calculateSwimMotion(deltaTime)
-    
-    // Calculate social influences
-    const socialForce = this.calculateSocialForce(allFish)
-    
-    // Calculate environmental responses
-    const environmentalForce = this.calculateEnvironmentalForce(bounds)
-    
-    // Combine all forces (prioritize flocking)
-    const totalForce = new THREE.Vector3()
-    
-    // Social forces (flocking) should dominate
-    totalForce.add(socialForce.clone().multiplyScalar(3.0))
-    
-    // Environmental forces (boundaries)
-    totalForce.add(environmentalForce)
-    
-    // Individual swimming motion (minimal)
-    totalForce.add(swimMotion.clone().multiplyScalar(0.3))
-    
-    // Apply personality modifiers
-    totalForce.multiplyScalar(this.physics.personality.speedMultiplier)
-    
-    // Update velocity with smooth acceleration
-    const acceleration = totalForce.clone().multiplyScalar(this.behavior.acceleration * deltaTime)
-    this.physics.velocity.add(acceleration)
-    
-    // Clamp speed to natural range
-    const currentSpeed = this.physics.velocity.length()
-    const targetSpeed = this.behavior.minSpeed + (this.behavior.maxSpeed - this.behavior.minSpeed) * 
-                       (0.5 + Math.sin(this.physics.swimPhase) * 0.3)
-    
-    if (currentSpeed > 0) {
-      this.physics.velocity.normalize().multiplyScalar(
-        Math.max(this.behavior.minSpeed, Math.min(this.behavior.maxSpeed, targetSpeed))
-      )
+    // Change speed mode periodically (every 3-8 seconds)
+    if (currentTime - speed.lastModeChange > 3 + Math.random() * 5) {
+      this.changeSpeedMode()
+      speed.lastModeChange = currentTime
     }
+    
+    // Smoothly transition to target speed
+    const speedDifference = speed.targetSpeed - speed.currentSpeed
+    if (Math.abs(speedDifference) > 0.01) {
+      const maxSpeedChange = speed.acceleration * deltaTime
+      const speedChange = Math.sign(speedDifference) * Math.min(Math.abs(speedDifference), maxSpeedChange)
+      speed.currentSpeed += speedChange
+    }
+  }
+
+  /**
+   * P1.3: DIRECTION CHANGES - Steering and navigation
+   */
+  private updateDirectionChanges(deltaTime: number, currentTime: number): void {
+    const direction = this.movement.direction
+    
+    // Initiate new direction changes periodically (every 2-6 seconds)
+    if (!direction.isChangingDirection && 
+        currentTime - direction.lastDirectionChange > 2 + Math.random() * 4) {
+      this.initiateDirectionChange()
+      direction.lastDirectionChange = currentTime
+    }
+    
+    // Update current heading towards target
+    if (direction.isChangingDirection) {
+      const angleDifference = direction.currentHeading.angleTo(direction.targetHeading)
+      
+      if (angleDifference > 0.05) { // 3 degrees tolerance
+        // Calculate turn rate (limited by max turn rate)
+        const maxAngleChange = direction.turnRate * deltaTime
+        const angleChange = Math.min(angleDifference, maxAngleChange)
+        
+        // Slerp towards target heading
+        direction.currentHeading.lerp(direction.targetHeading, angleChange / angleDifference)
+        direction.currentHeading.normalize()
+        
+        // Update roll target based on turn direction
+        this.updateRollForTurn(direction.currentHeading, direction.targetHeading)
+      } else {
+        // Turn complete
+        direction.currentHeading.copy(direction.targetHeading)
+        direction.isChangingDirection = false
+        this.movement.roll.targetAngle = 0 // Return to level
+      }
+    }
+  }
+
+  /**
+   * P1.4: ROLL - Banking during turns like aircraft
+   */
+  private updateRoll(deltaTime: number, _currentTime: number): void {
+    const roll = this.movement.roll
+    
+    // Smoothly transition to target roll angle
+    const rollDifference = roll.targetAngle - roll.currentAngle
+    if (Math.abs(rollDifference) > 0.01) {
+      const maxRollChange = roll.rollSpeed * deltaTime
+      const rollChange = Math.sign(rollDifference) * Math.min(Math.abs(rollDifference), maxRollChange)
+      roll.currentAngle += rollChange
+    }
+    
+    // Clamp roll angle to maximum
+    roll.currentAngle = Math.max(-roll.maxRollAngle, Math.min(roll.maxRollAngle, roll.currentAngle))
+  }
+
+  /**
+   * Apply movement to physics system
+   */
+  private updatePhysics(deltaTime: number): void {
+    // Update velocity from current heading and speed
+    this.updateVelocityFromHeading()
     
     // Update position
-    this.physics.position.add(this.physics.velocity.clone().multiplyScalar(deltaTime))
+    this.physics.position.add(
+      this.physics.velocity.clone().multiplyScalar(deltaTime)
+    )
     
     // Update rotation to face movement direction
-    this.updateRotation(deltaTime)
-    
-    // Ensure fish always faces forward in movement direction
-    if (this.physics.velocity.length() > 0.1) {
-      const direction = this.physics.velocity.clone().normalize()
-      this.physics.rotation.y = Math.atan2(direction.x, direction.z)
-      this.physics.rotation.x = -Math.asin(direction.y)
-      this.physics.rotation.z = 0 // Keep fish upright
-    }
-    
-    // Apply boundaries
-    this.applyBoundaries(bounds)
+    this.updateRotationFromMovement()
   }
 
   /**
-   * Calculate natural swimming motion with undulation
+   * Helper methods
    */
-  private calculateSwimMotion(deltaTime: number): THREE.Vector3 {
-    const force = new THREE.Vector3()
+  private changeSpeedMode(): void {
+    const modes = [SpeedMode.RESTING, SpeedMode.CRUISING, SpeedMode.ACTIVE, SpeedMode.BURST]
+    const weights = [0.2, 0.5, 0.25, 0.05] // Weighted random selection
     
-    // Forward swimming motion (very weak to let flocking dominate)
-    const forwardForce = this.physics.targetDirection.clone().multiplyScalar(
-      this.behavior.maxSpeed * 0.01
-    )
-    force.add(forwardForce)
-    
-    // Natural undulation (side-to-side motion)
-    const undulation = Math.sin(this.physics.swimPhase) * this.behavior.swimAmplitude
-    const rightVector = new THREE.Vector3(1, 0, 0)
-    rightVector.applyQuaternion(new THREE.Quaternion().setFromEuler(this.physics.rotation))
-    force.add(rightVector.multiplyScalar(undulation))
-    
-    // Depth seeking behavior
-    const depthDiff = this.physics.targetDepth - this.physics.position.y
-    const depthForce = new THREE.Vector3(0, depthDiff * 0.05, 0)
-    force.add(depthForce)
-    
-    return force
-  }
-
-  /**
-   * Calculate social forces from nearby fish (enhanced flocking)
-   */
-  private calculateSocialForce(allFish: Fish[]): THREE.Vector3 {
-    const force = new THREE.Vector3()
-    let neighborCount = 0
-    const cohesionCenter = new THREE.Vector3()
-    const averageVelocity = new THREE.Vector3()
-    
-    allFish.forEach(other => {
-      if (other.id === this.id || !other.isActive) return
-      
-      const distance = this.physics.position.distanceTo(other.physics.position)
-      
-      if (distance < this.behavior.neighborRadius && distance > 0) {
-        // Separation force (stronger, prevents collision)
-        if (distance < this.behavior.separationRadius) {
-          const separation = this.physics.position.clone().sub(other.physics.position)
-          separation.normalize().multiplyScalar(
-            (this.behavior.separationRadius - distance) * this.behavior.separationStrength * 2.0
-          )
-          force.add(separation)
-        }
-        
-        // Cohesion force (attracts fish to flock center)
-        if (distance < this.behavior.neighborRadius) {
-          cohesionCenter.add(other.physics.position)
-          averageVelocity.add(other.physics.velocity)
-          neighborCount++
-        }
-      }
-    })
-    
-    if (neighborCount > 0) {
-      // Calculate flock center
-      cohesionCenter.divideScalar(neighborCount)
-      const cohesionForce = cohesionCenter.clone().sub(this.physics.position)
-      cohesionForce.normalize().multiplyScalar(this.behavior.neighborInfluence * 0.8)
-      force.add(cohesionForce)
-      
-      // Alignment force (match flock direction)
-      averageVelocity.divideScalar(neighborCount)
-      if (averageVelocity.length() > 0.1) {
-        const alignmentForce = averageVelocity.clone().normalize().multiplyScalar(
-          this.behavior.neighborInfluence * 1.2
-        )
-        force.add(alignmentForce)
+    let random = Math.random()
+    for (let i = 0; i < modes.length; i++) {
+      random -= weights[i]
+      if (random <= 0) {
+        this.movement.speed.currentMode = modes[i]
+        this.movement.speed.targetSpeed = modes[i] + (Math.random() - 0.5) * 0.3 // ±15% variation
+        break
       }
     }
+  }
+
+  private initiateDirectionChange(): void {
+    const direction = this.movement.direction
     
-    // Apply social personality modifier
-    force.multiplyScalar(this.physics.personality.socialMultiplier)
+    // Generate new target heading (±90 degrees from current)
+    const currentAngle = Math.atan2(direction.currentHeading.x, direction.currentHeading.z)
+    const turnAngle = (Math.random() - 0.5) * Math.PI // ±90 degrees
+    const newAngle = currentAngle + turnAngle
     
-    return force
+    direction.targetHeading.set(
+      Math.sin(newAngle),
+      0, // Keep in horizontal plane for now
+      Math.cos(newAngle)
+    ).normalize()
+    
+    direction.isChangingDirection = true
+  }
+
+  private updateRollForTurn(current: THREE.Vector3, target: THREE.Vector3): void {
+    // Calculate cross product to determine turn direction
+    const cross = new THREE.Vector3().crossVectors(current, target)
+    const turnDirection = Math.sign(cross.y)
+    
+    // Set roll angle proportional to turn angle (banking into turn)
+    const turnAngle = current.angleTo(target)
+    const rollIntensity = Math.min(turnAngle / (Math.PI / 4), 1.0) // Normalize to max at 45° turn
+    
+    this.movement.roll.targetAngle = -turnDirection * rollIntensity * this.movement.roll.maxRollAngle
+  }
+
+  private updateVelocityFromHeading(): void {
+    this.physics.velocity.copy(this.movement.direction.currentHeading)
+    this.physics.velocity.multiplyScalar(this.movement.speed.currentSpeed * this.behavior.bodyLength)
+  }
+
+  private updateRotationFromMovement(): void {
+    // Update Y rotation (yaw) to face movement direction
+    const heading = this.movement.direction.currentHeading
+    this.physics.rotation.y = Math.atan2(heading.x, heading.z)
+    
+    // Apply roll (Z rotation)
+    this.physics.rotation.z = this.movement.roll.currentAngle
+    
+    // Apply undulation to Y rotation (tail wagging effect)
+    const undulationEffect = Math.sin(this.movement.undulation.phase) * 
+                            this.movement.undulation.amplitude * 0.3 // 30% of amplitude
+    this.physics.rotation.y += undulationEffect
   }
 
   /**
-   * Calculate environmental forces (boundaries, currents)
+   * Getter methods for external access
    */
-  private calculateEnvironmentalForce(bounds: THREE.Box3): THREE.Vector3 {
-    const force = new THREE.Vector3()
-    const pos = this.physics.position
-    
-    // Edge avoidance
-    const margin = this.behavior.edgeAvoidanceRadius
-    
-    // X-axis edge avoidance
-    if (pos.x < bounds.min.x + margin) {
-      force.x = (margin - (pos.x - bounds.min.x)) * this.behavior.edgeAvoidanceStrength
-    } else if (pos.x > bounds.max.x - margin) {
-      force.x = -(margin - (bounds.max.x - pos.x)) * this.behavior.edgeAvoidanceStrength
-    }
-    
-    // Y-axis edge avoidance
-    if (pos.y < bounds.min.y + margin) {
-      force.y = (margin - (pos.y - bounds.min.y)) * this.behavior.edgeAvoidanceStrength
-    } else if (pos.y > bounds.max.y - margin) {
-      force.y = -(margin - (bounds.max.y - pos.y)) * this.behavior.edgeAvoidanceStrength
-    }
-    
-    // Z-axis edge avoidance
-    if (pos.z < bounds.min.z + margin) {
-      force.z = (margin - (pos.z - bounds.min.z)) * this.behavior.edgeAvoidanceStrength
-    } else if (pos.z > bounds.max.z - margin) {
-      force.z = -(margin - (bounds.max.z - pos.z)) * this.behavior.edgeAvoidanceStrength
-    }
-    
-    // Subtle underwater currents
-    const currentStrength = 0.02
-    force.x += Math.sin(pos.x * 0.01) * currentStrength
-    force.y += Math.cos(pos.y * 0.01) * currentStrength * 0.5
-    force.z += Math.sin(pos.z * 0.01) * currentStrength
-    
-    return force
+  public getPosition(): THREE.Vector3 {
+    return this.physics.position.clone()
   }
 
-  /**
-   * Update rotation to face movement direction with smooth turning
-   */
-  private updateRotation(deltaTime: number): void {
-    if (this.physics.velocity.length() > 0.1) {
-      const targetDirection = this.physics.velocity.clone().normalize()
-      
-      // Calculate target rotation
-      const targetRotation = new THREE.Euler()
-      targetRotation.setFromQuaternion(
-        new THREE.Quaternion().setFromUnitVectors(
-          new THREE.Vector3(0, 0, 1), // Fish forward direction
-          targetDirection
-        )
-      )
-      
-      // Smooth rotation interpolation
-      const turnSpeed = this.behavior.turnSpeed * this.physics.personality.turnMultiplier * deltaTime
-      this.physics.rotation.x += (targetRotation.x - this.physics.rotation.x) * turnSpeed
-      this.physics.rotation.y += (targetRotation.y - this.physics.rotation.y) * turnSpeed
-      this.physics.rotation.z += (targetRotation.z - this.physics.rotation.z) * turnSpeed
-      
-      // Keep fish upright (no rolling)
-      this.physics.rotation.z = Math.max(-0.2, Math.min(0.2, this.physics.rotation.z))
-    }
+  public getRotation(): THREE.Euler {
+    return this.physics.rotation.clone()
   }
 
-  /**
-   * Apply boundary constraints with bounce
-   */
-  private applyBoundaries(bounds: THREE.Box3): void {
-    const margin = 1
-    const pos = this.physics.position
-    const vel = this.physics.velocity
-    
-    // X-axis boundaries
-    if (pos.x < bounds.min.x + margin) {
-      pos.x = bounds.min.x + margin
-      vel.x = Math.abs(vel.x) * 0.8
-    } else if (pos.x > bounds.max.x - margin) {
-      pos.x = bounds.max.x - margin
-      vel.x = -Math.abs(vel.x) * 0.8
-    }
-    
-    // Y-axis boundaries
-    if (pos.y < bounds.min.y + margin) {
-      pos.y = bounds.min.y + margin
-      vel.y = Math.abs(vel.y) * 0.8
-    } else if (pos.y > bounds.max.y - margin) {
-      pos.y = bounds.max.y - margin
-      vel.y = -Math.abs(vel.y) * 0.8
-    }
-    
-    // Z-axis boundaries
-    if (pos.z < bounds.min.z + margin) {
-      pos.z = bounds.min.z + margin
-      vel.z = Math.abs(vel.z) * 0.8
-    } else if (pos.z > bounds.max.z - margin) {
-      pos.z = bounds.max.z - margin
-      vel.z = -Math.abs(vel.z) * 0.8
-    }
+  public getVelocity(): THREE.Vector3 {
+    return this.physics.velocity.clone()
   }
 
-  /**
-   * Occasionally change swimming direction for natural behavior
-   */
-  public changeDirection(): void {
-    const now = performance.now()
-    if (now - this.physics.lastDirectionChange > 10000 + Math.random() * 10000) { // 10-20 seconds
-      this.physics.targetDirection.set(
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2
-      ).normalize()
-      
-      this.physics.lastDirectionChange = now
-    }
+  public getScale(): THREE.Vector3 {
+    return this.physics.scale.clone()
   }
 
-  /**
-   * Get current speed
-   */
   public getSpeed(): number {
-    return this.physics.velocity.length()
+    return this.movement.speed.currentSpeed
+  }
+
+  public getSpeedMode(): SpeedMode {
+    return this.movement.speed.currentMode
+  }
+
+  public getUndulationPhase(): number {
+    return this.movement.undulation.phase
+  }
+
+  public getUndulationAmplitude(): number {
+    return this.movement.undulation.amplitude
+  }
+
+  public getRollAngle(): number {
+    return this.movement.roll.currentAngle
+  }
+
+  public getHeading(): THREE.Vector3 {
+    return this.movement.direction.currentHeading.clone()
+  }
+
+  public isMoving(): boolean {
+    return this.movement.speed.currentSpeed > 0.1
+  }
+
+  public isChangingDirection(): boolean {
+    return this.movement.direction.isChangingDirection
   }
 
   /**
-   * Get distance to another fish
+   * Utility methods
    */
-  public distanceTo(other: Fish): number {
-    return this.physics.position.distanceTo(other.physics.position)
+  public getDistanceTo(otherFish: Fish): number {
+    return this.physics.position.distanceTo(otherFish.physics.position)
   }
 
-  /**
-   * Clone fish with new position
-   */
-  public clone(newPosition: THREE.Vector3): Fish {
-    return new Fish(this.id, newPosition, this.behavior)
+  public getDirectionTo(otherFish: Fish): THREE.Vector3 {
+    return otherFish.physics.position.clone().sub(this.physics.position).normalize()
+  }
+
+  public setPosition(position: THREE.Vector3): void {
+    this.physics.position.copy(position)
+  }
+
+  public setRotation(rotation: THREE.Euler): void {
+    this.physics.rotation.copy(rotation)
+  }
+
+  public dispose(): void {
+    // No resources to dispose for Phase 1
   }
 }

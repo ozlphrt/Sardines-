@@ -18,7 +18,7 @@ export class UnderwaterEnvironment {
   private rockGroup: THREE.Group
   private seaweedGroup: THREE.Group
   private planktonGroup: THREE.Group
-  private oceanFloor: THREE.Mesh
+  private oceanFloor!: THREE.Mesh
   private seaweedAnimationTime: number = 0
   private planktonAnimationTime: number = 0
 
@@ -424,7 +424,11 @@ export class UnderwaterEnvironment {
     // Clean up ocean floor
     if (this.oceanFloor) {
       this.oceanFloor.geometry.dispose()
-      this.oceanFloor.material.dispose()
+      if (Array.isArray(this.oceanFloor.material)) {
+        this.oceanFloor.material.forEach(mat => mat.dispose())
+      } else {
+        this.oceanFloor.material.dispose()
+      }
       this.scene.remove(this.oceanFloor)
     }
   }

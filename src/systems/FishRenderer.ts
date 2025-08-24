@@ -22,22 +22,14 @@ export class FishRenderer {
   private tempVector: THREE.Vector3 = new THREE.Vector3()
   private tempQuaternion: THREE.Quaternion = new THREE.Quaternion()
   
-     // Performance optimization properties
-   private camera: THREE.Camera | null = null
-   private visibleFishCount: number = 0
-   private lastUpdateTime: number = 0
-   private updateInterval: number = 16 // Update every 16ms (60fps) for smooth movement
-   private frustum: THREE.Frustum = new THREE.Frustum()
-   private matrix: THREE.Matrix4 = new THREE.Matrix4()
-   private sphere: THREE.Sphere = new THREE.Sphere()
-   
-     // Test animation properties
-  private testMixer: THREE.AnimationMixer | null = null
-  private lastAnimationUpdateTime: number = 0
-  
-         // Fish swimming animation properties
-    private fishAnimationTime: number = 0
-    private fishAnimationSpeed: number = 2.0 // Swimming speed
+  // Performance optimization properties
+  private camera: THREE.Camera | null = null
+  private visibleFishCount: number = 0
+  private lastUpdateTime: number = 0
+  private updateInterval: number = 16 // Update every 16ms (60fps) for smooth movement
+  private frustum: THREE.Frustum = new THREE.Frustum()
+  private matrix: THREE.Matrix4 = new THREE.Matrix4()
+  private sphere: THREE.Sphere = new THREE.Sphere()
 
   constructor(scene: THREE.Scene, config: FishRenderConfig) {
     this.scene = scene
@@ -57,18 +49,13 @@ export class FishRenderer {
       const loader = new GLTFLoader()
       
       // Add error handling for the loader
-      loader.setPath('')
+      loader.setPath('/assets/fish-model/')
       
-      const gltf = await loader.loadAsync(this.config.modelPath)
+      console.log('Attempting to load scene.gltf...')
+      const gltf = await loader.loadAsync('scene.gltf')
+      console.log('GLTF model loaded successfully!')
       
       console.log('GLTF loaded, scene children:', gltf.scene.children.length)
-      
-      // Check for animations first
-      if (gltf.animations && gltf.animations.length > 0) {
-        console.log('Found animations:', gltf.animations.map(anim => anim.name))
-        console.log('Animation duration:', gltf.animations[0].duration)
-        console.log('Animation tracks:', gltf.animations[0].tracks.length)
-      }
       
       // Get the first mesh from the model
       const model = gltf.scene
@@ -83,7 +70,8 @@ export class FishRenderer {
       })
 
       if (!fishMesh) {
-        console.warn('No mesh found in GLTF model, using fallback')
+        console.error('No mesh found in GLTF model, using fallback')
+        console.log('Available children:', gltf.scene.children.map(child => ({ type: child.type, name: child.name })))
         this.createFallbackGeometry()
         return
       }
@@ -160,17 +148,12 @@ export class FishRenderer {
         this.scene.add(this.instancedMesh)
         console.log('InstancedMesh created for', this.config.maxFishCount, 'fish')
       }
-      
-             // Animation system ready for future implementation
-       
-       // Fish swimming animation is now applied to all fish in the flock
-       console.log('Fish swimming animation system ready')
     
-    // Optimize textures for performance
-    this.updateTextureSettings()
+      // Optimize textures for performance
+      this.updateTextureSettings()
     
-    this.modelLoaded = true
-    console.log('Fish model loaded successfully with textures')
+      this.modelLoaded = true
+      console.log('Fish model loaded successfully with textures')
     } catch (error) {
       console.error('Failed to load fish model:', error)
       // Fallback to simple geometry
@@ -178,15 +161,14 @@ export class FishRenderer {
     }
   }
 
-  
-
   /**
    * Create fallback geometry if model loading fails
    */
   private createFallbackGeometry(): void {
-    // Create a more fish-like geometry
+    // Create a more fish-like geometry that won't spin
     const fishGeometry = new THREE.ConeGeometry(0.8, 3, 12)
     fishGeometry.rotateX(Math.PI / 2) // Point forward
+    fishGeometry.rotateZ(Math.PI) // Fix orientation to prevent spinning
     
     this.geometry = fishGeometry
     this.material = new THREE.MeshStandardMaterial({
@@ -217,28 +199,19 @@ export class FishRenderer {
   }
 
   /**
-   * Update fish positions and rotations with performance optimizations
+   * Update fish positions and rotations - CLEAN VERSION
    */
   public updateFish(fish: Fish[]): void {
     if (!this.instancedMesh || !this.modelLoaded) {
       return
     }
 
-         // Throttle updates for performance
-     const currentTime = performance.now()
-     if (currentTime - this.lastUpdateTime < this.updateInterval) {
-       return
-     }
-     this.lastUpdateTime = currentTime
-
-           // Update fish swimming animation time
-      const deltaTime = (currentTime - this.lastUpdateTime) * 0.001
-      this.fishAnimationTime += deltaTime * this.fishAnimationSpeed
-
-      // Fish swimming animation properties
-      const tailWagAmount = 0.6 // More pronounced tail wagging
-      const bodyUndulation = 0.4 // More pronounced body undulation
-      const swimmingSpeed = 3.0 // Faster swimming animation
+    // Throttle updates for performance
+    const currentTime = performance.now()
+    if (currentTime - this.lastUpdateTime < this.updateInterval) {
+      return
+    }
+    this.lastUpdateTime = currentTime
 
     // Update frustum for culling
     if (this.config.enableFrustumCulling && this.camera) {
@@ -257,53 +230,40 @@ export class FishRenderer {
     }
 
     // Limit to max fish count for performance
-    const fishToRender = visibleFish.slice(0, Math.min(this.config.maxFishCount, 500)) // Hard limit for performance
+    const fishToRender = visibleFish.slice(0, Math.min(this.config.maxFishCount, 500))
     this.instancedMesh.count = fishToRender.length
 
-         // Batch update matrices for better performance
-     fishToRender.forEach((fishInstance, index) => {
-       // Set position
-       this.tempVector.copy(fishInstance.physics.position)
-       
-                      // Use the physics rotation (already calculated to face movement direction)
-        let targetRotation = fishInstance.physics.rotation.clone()
-        
-        // Add subtle swimming animations on top of the base rotation
-        const speed = fishInstance.physics.velocity.length()
-        if (speed > 0.1) {
-          // Add subtle tail wagging
-          const tailWag = Math.sin(this.fishAnimationTime * swimmingSpeed + index * 0.5) * tailWagAmount * 0.2
-          targetRotation.y += tailWag
-          
-          // Add very subtle body undulation
-          const undulation = Math.sin(this.fishAnimationTime * swimmingSpeed * 0.7 + index * 0.3) * bodyUndulation * 0.1
-          targetRotation.z += undulation
+    // Batch update matrices for better performance
+    fishToRender.forEach((fishInstance, index) => {
+      // Set position
+      this.tempVector.copy(fishInstance.physics.position)
+      
+      // Use ONLY the physics rotation (no additional animations)
+      const targetRotation = fishInstance.physics.rotation.clone()
+      
+      // Set rotation (convert Euler to Quaternion)
+      this.tempQuaternion.setFromEuler(targetRotation)
+     
+      // Set scale with LOD optimization
+      let scale = fishInstance.physics.scale.clone().multiplyScalar(this.config.scale)
+      
+      // Apply LOD scaling for distant fish (simplified for performance)
+      if (this.config.enableLOD && this.camera) {
+        const distance = this.tempVector.distanceTo(this.camera.position)
+        if (distance > this.config.lodDistance) {
+          const lodScale = Math.max(0.3, this.config.lodDistance / distance)
+          scale.multiplyScalar(lodScale)
         }
-        
-        // Ensure fish stays upright (no rolling)
-        targetRotation.z = Math.max(-0.05, Math.min(0.05, targetRotation.z))
-        
-        // Set rotation (convert Euler to Quaternion)
-        this.tempQuaternion.setFromEuler(targetRotation)
-       
-       // Set scale with LOD optimization
-       let scale = fishInstance.physics.scale.clone().multiplyScalar(this.config.scale)
-       
-       // Apply LOD scaling for distant fish (simplified for performance)
-       if (this.config.enableLOD && this.camera) {
-         const distance = this.tempVector.distanceTo(this.camera.position)
-         if (distance > this.config.lodDistance) {
-           const lodScale = Math.max(0.3, this.config.lodDistance / distance)
-           scale.multiplyScalar(lodScale)
-         }
-       }
-       
-       // Update matrix
-       this.matrix.compose(this.tempVector, this.tempQuaternion, scale)
-       
-       // Set instance matrix
-       this.instancedMesh.setMatrixAt(index, this.matrix)
-     })
+      }
+      
+      // Update matrix
+      this.matrix.compose(this.tempVector, this.tempQuaternion, scale)
+      
+      // Set instance matrix
+      if (this.instancedMesh) {
+        this.instancedMesh.setMatrixAt(index, this.matrix)
+      }
+    })
 
     // Mark instances as needing update
     this.instancedMesh.instanceMatrix.needsUpdate = true
