@@ -160,39 +160,161 @@ const Sidebar: React.FC = () => {
   const renderPerformanceControls = () => (
     <div className="space-y-1">
       <div className="space-y-0.5">
-        <h4 className="text-xs font-semibold text-muted uppercase tracking-wide">Presets</h4>
-        <div className="grid grid-cols-1 gap-0.5">
-          <button
-            onClick={() => actions.loadPreset('calm')}
-            className="px-1 py-0.5 bg-accent/20 hover:bg-accent/30 text-accent rounded text-xs transition-colors"
-          >
-            Calm Swimming
-          </button>
-          <button
-            onClick={() => actions.loadPreset('tight')}
-            className="px-1 py-0.5 bg-accent/20 hover:bg-accent/30 text-accent rounded text-xs transition-colors"
-          >
-            Tight Schooling
-          </button>
-          <button
-            onClick={() => actions.loadPreset('scattered')}
-            className="px-1 py-0.5 bg-accent/20 hover:bg-accent/30 text-accent rounded text-xs transition-colors"
-          >
-            Scattered Behavior
-          </button>
-        </div>
+        <h4 className="text-xs font-semibold text-muted uppercase tracking-wide">Behavior Presets</h4>
+                 <div className="grid grid-cols-3 gap-0.5">
+           <button
+             onClick={() => actions.loadPreset('calm')}
+             className={`px-1 py-0.5 rounded text-xs transition-colors ${
+               ui.selectedBehaviorPreset === 'calm' 
+                 ? 'bg-accent/40 text-accent font-semibold' 
+                 : 'bg-accent/20 hover:bg-accent/30 text-accent'
+             }`}
+           >
+             Calm
+           </button>
+           <button
+             onClick={() => actions.loadPreset('tight')}
+             className={`px-1 py-0.5 rounded text-xs transition-colors ${
+               ui.selectedBehaviorPreset === 'tight' 
+                 ? 'bg-accent/40 text-accent font-semibold' 
+                 : 'bg-accent/20 hover:bg-accent/30 text-accent'
+             }`}
+           >
+             Tight
+           </button>
+           <button
+             onClick={() => actions.loadPreset('scattered')}
+             className={`px-1 py-0.5 rounded text-xs transition-colors ${
+               ui.selectedBehaviorPreset === 'scattered' 
+                 ? 'bg-accent/40 text-accent font-semibold' 
+                 : 'bg-accent/20 hover:bg-accent/30 text-accent'
+             }`}
+           >
+             Scattered
+           </button>
+           <button
+             onClick={() => actions.loadPreset('aggressive')}
+             className={`px-1 py-0.5 rounded text-xs transition-colors ${
+               ui.selectedBehaviorPreset === 'aggressive' 
+                 ? 'bg-accent/40 text-accent font-semibold' 
+                 : 'bg-accent/20 hover:bg-accent/30 text-accent'
+             }`}
+           >
+             Aggressive
+           </button>
+           <button
+             onClick={() => actions.loadPreset('gentle')}
+             className={`px-1 py-0.5 rounded text-xs transition-colors ${
+               ui.selectedBehaviorPreset === 'gentle' 
+                 ? 'bg-accent/40 text-accent font-semibold' 
+                 : 'bg-accent/20 hover:bg-accent/30 text-accent'
+             }`}
+           >
+             Gentle
+           </button>
+           <button
+             onClick={() => actions.loadPreset('chaotic')}
+             className={`px-1 py-0.5 rounded text-xs transition-colors ${
+               ui.selectedBehaviorPreset === 'chaotic' 
+                 ? 'bg-accent/40 text-accent font-semibold' 
+                 : 'bg-accent/20 hover:bg-accent/30 text-accent'
+             }`}
+           >
+             Chaotic
+           </button>
+           <button
+             onClick={() => actions.loadPreset('organized')}
+             className={`px-1 py-0.5 rounded text-xs transition-colors ${
+               ui.selectedBehaviorPreset === 'organized' 
+                 ? 'bg-accent/40 text-accent font-semibold' 
+                 : 'bg-accent/20 hover:bg-accent/30 text-accent'
+             }`}
+           >
+             Organized
+           </button>
+           <button
+             onClick={() => actions.loadPreset('minimal')}
+             className={`px-1 py-0.5 rounded text-xs transition-colors ${
+               ui.selectedBehaviorPreset === 'minimal' 
+                 ? 'bg-accent/40 text-accent font-semibold' 
+                 : 'bg-accent/20 hover:bg-accent/30 text-accent'
+             }`}
+           >
+             Minimal
+           </button>
+           <button
+             onClick={actions.resetSimulation}
+             className="px-1 py-0.5 bg-warning/20 hover:bg-warning/30 text-warning rounded text-xs transition-colors"
+           >
+             Reset
+           </button>
+         </div>
       </div>
       
       <div className="space-y-0.5">
-        <h4 className="text-xs font-semibold text-muted uppercase tracking-wide">Actions</h4>
-        <div className="grid grid-cols-1 gap-0.5">
-          <button
-            onClick={actions.resetSimulation}
-            className="px-1 py-0.5 bg-warning/20 hover:bg-warning/30 text-warning rounded text-xs transition-colors"
-          >
-            Reset to Defaults
-          </button>
-        </div>
+        <h4 className="text-xs font-semibold text-muted uppercase tracking-wide">Camera Presets</h4>
+                 <div className="grid grid-cols-3 gap-0.5">
+           <button
+             onClick={() => actions.loadCameraPreset('default')}
+             className={`px-1 py-0.5 rounded text-xs transition-colors ${
+               ui.selectedCameraPreset === 'default' 
+                 ? 'bg-success/40 text-success font-semibold' 
+                 : 'bg-success/20 hover:bg-success/30 text-success'
+             }`}
+           >
+             Default
+           </button>
+           <button
+             onClick={() => actions.loadCameraPreset('close')}
+             className={`px-1 py-0.5 rounded text-xs transition-colors ${
+               ui.selectedCameraPreset === 'close' 
+                 ? 'bg-success/40 text-success font-semibold' 
+                 : 'bg-success/20 hover:bg-success/30 text-success'
+             }`}
+           >
+             Close
+           </button>
+           <button
+             onClick={() => actions.loadCameraPreset('far')}
+             className={`px-1 py-0.5 rounded text-xs transition-colors ${
+               ui.selectedCameraPreset === 'far' 
+                 ? 'bg-success/40 text-success font-semibold' 
+                 : 'bg-success/20 hover:bg-success/30 text-success'
+             }`}
+           >
+             Far
+           </button>
+                      <button
+              onClick={() => actions.loadCameraPreset('action')}
+              className={`px-1 py-0.5 rounded text-xs transition-colors ${
+                ui.selectedCameraPreset === 'action' 
+                  ? 'bg-success/40 text-success font-semibold' 
+                  : 'bg-success/20 hover:bg-success/30 text-success'
+              }`}
+            >
+              Action
+            </button>
+            <button
+              onClick={() => actions.loadCameraPreset('follow')}
+              className={`px-1 py-0.5 rounded text-xs transition-colors ${
+                ui.selectedCameraPreset === 'follow' 
+                  ? 'bg-success/40 text-success font-semibold' 
+                  : 'bg-success/20 hover:bg-success/30 text-success'
+              }`}
+            >
+              Follow
+            </button>
+           <button
+             onClick={() => actions.loadCameraPreset('corner')}
+             className={`px-1 py-0.5 rounded text-xs transition-colors ${
+               ui.selectedCameraPreset === 'corner' 
+                 ? 'bg-success/40 text-success font-semibold' 
+                 : 'bg-success/20 hover:bg-success/30 text-success'
+             }`}
+           >
+             Corner
+           </button>
+         </div>
       </div>
     </div>
   )

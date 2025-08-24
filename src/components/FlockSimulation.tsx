@@ -5,7 +5,7 @@ import { SardinesScene } from '../systems/SardinesScene'
 const FlockSimulation: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<SardinesScene | null>(null)
-  const { parameters, performance, actions } = useSimulationStore()
+  const { parameters, performance, camera, actions } = useSimulationStore()
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -81,6 +81,13 @@ const FlockSimulation: React.FC = () => {
       sceneRef.current.setPaused(performance.isPaused)
     }
   }, [performance.isPaused])
+
+  // Handle camera changes
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.updateCamera(camera)
+    }
+  }, [camera])
 
   return (
     <div 

@@ -23,6 +23,9 @@ export class SardinesScene {
   
   private isPaused: boolean = false
   private lastTime: number = 0
+  private currentCameraMode: string = 'default'
+  private cameraTargetPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0)
+  private cameraLerpFactor: number = 0.02
 
   private frameTimeHistory: number[] = []
 
@@ -186,6 +189,9 @@ export class SardinesScene {
       this.fishRenderer.updateFish(fish)
     }
 
+    // Update special cameras (follow/action modes)
+    this.updateSpecialCameras()
+
     // Update controls
     this.controls.update()
 
@@ -235,6 +241,77 @@ export class SardinesScene {
     this.isPaused = paused
     if (this.flockManager) {
       this.flockManager.setPaused(paused)
+    }
+  }
+
+  public updateCamera(cameraState: { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }): void {
+    // Determine camera mode from position
+    if (cameraState.position.x === 0 && cameraState.position.y === 60 && cameraState.position.z === 150) {
+      this.currentCameraMode = 'follow'
+    } else if (cameraState.position.x === 120 && cameraState.position.y === 40 && cameraState.position.z === 80) {
+      this.currentCameraMode = 'action'
+    } else if (cameraState.position.x === 0 && cameraState.position.y === 50 && cameraState.position.z === 200) {
+      this.currentCameraMode = 'static'
+    } else {
+      this.currentCameraMode = 'static'
+    }
+    
+    // Update camera position
+    this.camera.position.set(cameraState.position.x, cameraState.position.y, cameraState.position.z)
+    
+    // Update camera target (look at point)
+    this.controls.target.set(cameraState.target.x, cameraState.target.y, cameraState.target.z)
+    
+    // Update controls
+    this.controls.update()
+  }
+
+  private updateSpecialCameras(): void {
+    if (!this.flockManager) return
+
+    const fish = this.flockManager.getFish()
+    if (fish.length === 0) return
+
+    // Calculate flock center
+    const flockCenter = new THREE.Vector3()
+    fish.forEach(fish => {
+      flockCenter.add(fish.physics.position)
+    })
+    flockCenter.divideScalar(fish.length)
+
+    if (this.currentCameraMode === 'follow') {
+      // Follow camera: smoothly follow the flock center
+      const targetPosition = new THREE.Vector3(
+        flockCenter.x,
+        flockCenter.y + 60, // Keep camera above the flock
+        flockCenter.z + 150 // Keep camera behind the flock
+      )
+      
+      // Smooth camera movement
+      this.camera.position.lerp(targetPosition, this.cameraLerpFactor)
+      this.controls.target.lerp(flockCenter, this.cameraLerpFactor)
+      this.controls.update()
+      
+    } else if (this.currentCameraMode === 'action') {
+      // Action camera: dynamic angle that follows flock movement
+      const flockVelocity = new THREE.Vector3()
+      fish.forEach(fish => {
+        flockVelocity.add(fish.physics.velocity)
+      })
+      flockVelocity.divideScalar(fish.length)
+      
+      // Calculate dynamic camera position based on flock movement
+      const movementDirection = flockVelocity.clone().normalize()
+      const actionPosition = new THREE.Vector3(
+        flockCenter.x + movementDirection.x * 120,
+        flockCenter.y + 40,
+        flockCenter.z + movementDirection.z * 80
+      )
+      
+      // Smooth camera movement with faster response for action camera
+      this.camera.position.lerp(actionPosition, this.cameraLerpFactor * 2)
+      this.controls.target.lerp(flockCenter, this.cameraLerpFactor * 2)
+      this.controls.update()
     }
   }
 

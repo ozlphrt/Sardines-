@@ -36,11 +36,18 @@ export interface PerformanceData {
   cullingEnabled: boolean
 }
 
+export interface CameraState {
+  position: { x: number; y: number; z: number }
+  target: { x: number; y: number; z: number }
+}
+
 export interface UIState {
   sidebarVisible: boolean
   hudVisible: boolean
   fullscreen: boolean
   activeSection: string
+  selectedBehaviorPreset: string
+  selectedCameraPreset: string
 }
 
 export interface SimulationStore {
@@ -57,16 +64,21 @@ export interface SimulationStore {
   // Performance data
   performance: PerformanceData
   
+  // Camera state
+  camera: CameraState
+  
   // Actions
   actions: {
     updateParameter: (category: keyof SimulationStore['parameters'], param: string, value: number) => void
     togglePause: () => void
     resetSimulation: () => void
     loadPreset: (preset: string) => void
+    loadCameraPreset: (preset: string) => void
     toggleSidebar: () => void
     toggleHUD: () => void
     setActiveSection: (section: string) => void
     updatePerformance: (data: Partial<PerformanceData>) => void
+    updateCamera: (camera: CameraState) => void
   }
 }
 
@@ -105,11 +117,18 @@ const defaultPerformance: PerformanceData = {
   cullingEnabled: false,
 }
 
+const defaultCamera: CameraState = {
+  position: { x: 120, y: 40, z: 80 },
+  target: { x: 0, y: 0, z: 0 },
+}
+
 const defaultUI: UIState = {
   sidebarVisible: true,
   hudVisible: true,
   fullscreen: false,
   activeSection: 'behavior',
+  selectedBehaviorPreset: 'default',
+  selectedCameraPreset: 'default',
 }
 
 // Store creation
@@ -125,6 +144,8 @@ export const useSimulationStore = create<SimulationStore>()(
       },
       
       performance: defaultPerformance,
+      
+      camera: defaultCamera,
       
       actions: {
         updateParameter: (category, param, value) => {
@@ -155,6 +176,10 @@ export const useSimulationStore = create<SimulationStore>()(
               physics: defaultPhysics,
               rendering: defaultRendering,
             },
+            ui: {
+              ...state.ui,
+              selectedBehaviorPreset: 'default',
+            },
             performance: {
               ...state.performance,
               isPaused: false,
@@ -172,7 +197,7 @@ export const useSimulationStore = create<SimulationStore>()(
             },
             tight: {
               behavior: { ...defaultBehavior, cohesionStrength: 1.0, separationStrength: 0.5 },
-              physics: { ...defaultPhysics, perceptionRadius: 150 },
+              physics: { ...defaultPhysics, maxSpeed: 50 },
               rendering: { ...defaultRendering, fishCount: 800 },
             },
             scattered: {
@@ -180,18 +205,76 @@ export const useSimulationStore = create<SimulationStore>()(
               physics: { ...defaultPhysics, maxSpeed: 80 },
               rendering: { ...defaultRendering, fishCount: 200 },
             },
+            aggressive: {
+              behavior: { ...defaultBehavior, cohesionStrength: 2.0, separationStrength: 0.3, alignmentStrength: 1.5 },
+              physics: { ...defaultPhysics, maxSpeed: 60, maxForce: 15 },
+              rendering: { ...defaultRendering, fishCount: 400 },
+            },
+            gentle: {
+              behavior: { ...defaultBehavior, cohesionStrength: 0.5, separationStrength: 1.0, alignmentStrength: 0.8 },
+              physics: { ...defaultPhysics, maxSpeed: 25, maxForce: 8 },
+              rendering: { ...defaultRendering, fishCount: 250 },
+            },
+            chaotic: {
+              behavior: { ...defaultBehavior, cohesionStrength: 0.1, separationStrength: 2.0, alignmentStrength: 0.3 },
+              physics: { ...defaultPhysics, maxSpeed: 70, maxForce: 20 },
+              rendering: { ...defaultRendering, fishCount: 350 },
+            },
+            organized: {
+              behavior: { ...defaultBehavior, cohesionStrength: 1.5, separationStrength: 0.8, alignmentStrength: 1.2 },
+              physics: { ...defaultPhysics, maxSpeed: 45, maxForce: 12 },
+              rendering: { ...defaultRendering, fishCount: 600 },
+            },
+            minimal: {
+              behavior: { ...defaultBehavior, cohesionStrength: 0.8, separationStrength: 1.2, alignmentStrength: 0.6 },
+              physics: { ...defaultPhysics, maxSpeed: 35, maxForce: 9 },
+              rendering: { ...defaultRendering, fishCount: 150 },
+            },
           }
           
           const selectedPreset = presets[preset as keyof typeof presets]
           if (selectedPreset) {
             set((state) => ({
               parameters: selectedPreset,
+              ui: {
+                ...state.ui,
+                selectedBehaviorPreset: preset,
+              },
               performance: {
                 ...state.performance,
                 isPaused: false,
               },
             }))
           }
+        },
+        
+        loadCameraPreset: (preset) => {
+          // Camera preset configurations
+          const cameraPresets = {
+            default: { position: { x: 120, y: 40, z: 80 }, target: { x: 0, y: 0, z: 0 } },
+            close: { position: { x: 0, y: 30, z: 100 }, target: { x: 0, y: 0, z: 0 } },
+            far: { position: { x: 0, y: 80, z: 300 }, target: { x: 0, y: 0, z: 0 } },
+            action: { position: { x: 120, y: 40, z: 80 }, target: { x: 0, y: 0, z: 0 } },
+            follow: { position: { x: 0, y: 60, z: 150 }, target: { x: 0, y: 0, z: 0 } },
+            corner: { position: { x: 150, y: 100, z: 150 }, target: { x: 0, y: 0, z: 0 } },
+          }
+          
+          const selectedCameraPreset = cameraPresets[preset as keyof typeof cameraPresets]
+          if (selectedCameraPreset) {
+            set((state) => ({
+              camera: selectedCameraPreset,
+              ui: {
+                ...state.ui,
+                selectedCameraPreset: preset,
+              },
+            }))
+          }
+        },
+        
+        updateCamera: (camera) => {
+          set((state) => ({
+            camera,
+          }))
         },
         
         toggleSidebar: () => {
