@@ -136,6 +136,14 @@ export class Fish {
     // Update rotation to face movement direction
     this.updateRotation(deltaTime)
     
+    // Ensure fish always faces forward in movement direction
+    if (this.physics.velocity.length() > 0.1) {
+      const direction = this.physics.velocity.clone().normalize()
+      this.physics.rotation.y = Math.atan2(direction.x, direction.z)
+      this.physics.rotation.x = -Math.asin(direction.y)
+      this.physics.rotation.z = 0 // Keep fish upright
+    }
+    
     // Apply boundaries
     this.applyBoundaries(bounds)
   }
