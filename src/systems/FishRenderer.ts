@@ -181,37 +181,38 @@ export class FishRenderer {
     try {
       console.log('Creating test animated fish...')
       
-      // Clone the original model to preserve the skeletal structure for animation
-      const testFish = model.clone()
+      // Create a simple animated cube to test animation system
+      const testFish = new THREE.Mesh(
+        new THREE.BoxGeometry(10, 5, 15), // Simple fish-like box
+        new THREE.MeshStandardMaterial({ 
+          color: 0xFF0000, // Bright red
+          metalness: 0.1,
+          roughness: 0.8
+        })
+      )
       
       // Position it right in front of the camera where you can definitely see it
       testFish.position.set(0, 0, 15) // 15 units in front of camera (very close!)
-      testFish.scale.setScalar(this.config.scale * 30) // Make it MASSIVE (30x bigger)
+      testFish.scale.setScalar(2) // Make it visible
       
-      // Make it bright red so it's impossible to miss
-      testFish.traverse((child) => {
-        if (child instanceof THREE.Mesh && child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach(mat => {
-              if (mat instanceof THREE.MeshStandardMaterial) {
-                mat.color.setHex(0xFF0000) // Bright red
-              }
-            })
-          } else if (child.material instanceof THREE.MeshStandardMaterial) {
-            child.material.color.setHex(0xFF0000) // Bright red
-          }
-        }
-      })
+      // Create a simple rotation animation to test the animation system
+      const rotationAnimation = new THREE.AnimationClip('TestRotation', 2, [
+        new THREE.VectorKeyframeTrack(
+          '.rotation[y]',
+          [0, 1, 2],
+          [0, Math.PI * 2, 0]
+        )
+      ])
       
       // Create animation mixer for this fish
       const mixer = new THREE.AnimationMixer(testFish)
       
-      // Play the animation
-      const action = mixer.clipAction(animation)
+      // Play the simple rotation animation
+      const action = mixer.clipAction(rotationAnimation)
       action.setLoop(THREE.LoopRepeat, Infinity)
       action.play()
       
-      console.log('Animation action created:', action.getClip().name)
+      console.log('Simple test animation created and playing')
       console.log('Animation duration:', action.getClip().duration)
       console.log('Animation is running:', action.isRunning())
       
