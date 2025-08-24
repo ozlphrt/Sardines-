@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom CSS variables for underwater theme */
+:root {
+  --bg0: #0B0B0C;
+  --bg1: #121214;
+  --bg2: #18181B;
+  --hairline: #2A2A2E;
+  --text: #E5E7EB;
+  --muted: #9CA3AF;
+  --accent: #7DD3FC;
+  --danger: #F87171;
+  --success: #34D399;
+  --warning: #F59E0B;
+  --water-deep: #0B1426;
+  --water-surface: #1E3A8A;
+  --water-light: #3B82F6;
+  --caustics: rgba(59, 130, 246, 0.1);
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Inter', 'SF Pro Display', 'Segoe UI', 'Roboto', sans-serif;
+  background-color: var(--bg0);
+  color: var(--text);
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Glass morphism utility classes */
+.glass-panel {
+  background: rgba(24, 24, 27, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.glass-hud {
+  background: rgba(24, 24, 27, 0.5);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+/* Smooth transitions */
+* {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hairline);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+/* Focus styles for accessibility */
+*:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Selection styles */
+::selection {
+  background: var(--accent);
+  color: var(--bg0);
+}
