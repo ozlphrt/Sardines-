@@ -63,17 +63,20 @@ export class UnderwaterEnvironment {
     floorGeometry.computeVertexNormals()
     
     const floorMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(0x1B4F72), // Deep ocean blue
-      roughness: 0.9,
-      metalness: 0.0
+      color: new THREE.Color(0x0F4C75), // Brighter ocean blue for better visibility
+      roughness: 0.8,
+      metalness: 0.0,
+      side: THREE.DoubleSide // Render both sides
     })
     
     this.oceanFloor = new THREE.Mesh(floorGeometry, floorMaterial)
     this.oceanFloor.rotation.x = -Math.PI / 2 // Rotate to be horizontal
-    this.oceanFloor.position.y = -30 // Position at bottom of swimming area
+    this.oceanFloor.position.y = -35 // Position below swimming area for better visibility
     this.oceanFloor.receiveShadow = false
+    this.oceanFloor.name = 'OceanFloor'
     
     this.scene.add(this.oceanFloor)
+    console.log('Ocean floor created at Y = -35, size: 200x200')
   }
 
   private createEnvironment(): void {
@@ -89,7 +92,7 @@ export class UnderwaterEnvironment {
       const coral = this.createCoral()
       coral.position.set(
         (Math.random() - 0.5) * 80, // X: -40 to 40
-        -28, // Y: Just above ocean floor
+        -33, // Y: Just above ocean floor
         (Math.random() - 0.5) * 80  // Z: -40 to 40
       )
       coral.rotation.y = Math.random() * Math.PI * 2
@@ -117,7 +120,7 @@ export class UnderwaterEnvironment {
       const rock = this.createRock()
       rock.position.set(
         (Math.random() - 0.5) * 100, // X: -50 to 50
-        -28 + Math.random() * 3, // Y: Just above ocean floor with variation
+        -33 + Math.random() * 3, // Y: Just above ocean floor with variation
         (Math.random() - 0.5) * 100  // Z: -50 to 50
       )
       rock.rotation.set(
@@ -148,11 +151,11 @@ export class UnderwaterEnvironment {
       const seaweed = this.createSeaweedStalk()
       seaweed.position.set(
         (Math.random() - 0.5) * 90, // X: -45 to 45
-        -28, // Y: Just above ocean floor
+        -33, // Y: Just above ocean floor
         (Math.random() - 0.5) * 90  // Z: -45 to 45
       )
       seaweed.userData = { 
-        originalY: -28,
+        originalY: -33,
         swayOffset: Math.random() * Math.PI * 2,
         swaySpeed: 0.5 + Math.random() * 0.5
       }
@@ -230,7 +233,7 @@ export class UnderwaterEnvironment {
       
       // Keep plankton within bounds
       plankton.position.x = Math.max(-60, Math.min(60, plankton.position.x))
-      plankton.position.y = Math.max(-28, Math.min(25, plankton.position.y))
+      plankton.position.y = Math.max(-33, Math.min(25, plankton.position.y))
       plankton.position.z = Math.max(-60, Math.min(60, plankton.position.z))
     })
   }

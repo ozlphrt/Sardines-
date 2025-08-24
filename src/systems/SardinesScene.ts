@@ -43,7 +43,7 @@ export class SardinesScene {
       0.1, // Near plane
       2000 // Far plane
     )
-    this.camera.position.set(0, 0, 30) // Very close camera position to see the test fish
+    this.camera.position.set(0, -10, 30) // Lower camera position to see ocean floor
     
     // Renderer configuration
     this.renderer = new THREE.WebGLRenderer({
