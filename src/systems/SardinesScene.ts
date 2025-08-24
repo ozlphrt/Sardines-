@@ -40,7 +40,7 @@ export class SardinesScene {
       0.1, // Near plane
       2000 // Far plane
     )
-    this.camera.position.set(0, 50, 200) // Much closer camera position for better fish visibility
+    this.camera.position.set(0, 0, 100) // Much closer camera position to see the test fish
     
     // Renderer configuration
     this.renderer = new THREE.WebGLRenderer({
@@ -56,8 +56,8 @@ export class SardinesScene {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.enableDamping = true
     this.controls.dampingFactor = 0.05
-    this.controls.maxDistance = 800
-    this.controls.minDistance = 50
+    this.controls.maxDistance = 400
+    this.controls.minDistance = 20
     
 
     

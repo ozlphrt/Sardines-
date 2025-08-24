@@ -184,9 +184,9 @@ export class FishRenderer {
       // Clone the model for the test fish
       const testFish = model.clone()
       
-             // Position it high above the flock where you can definitely see it
-       testFish.position.set(0, 100, 0) // 100 units up in the air
-       testFish.scale.setScalar(this.config.scale * 10) // Make it HUGE (10x bigger)
+             // Position it right in front of the camera where you can definitely see it
+       testFish.position.set(0, 0, 50) // 50 units in front of camera
+       testFish.scale.setScalar(this.config.scale * 20) // Make it MASSIVE (20x bigger)
        
        // Make it bright red so it's impossible to miss
        testFish.traverse((child) => {
