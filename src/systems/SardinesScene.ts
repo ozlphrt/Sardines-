@@ -90,43 +90,43 @@ export class SardinesScene {
   }
 
   private setupLighting(): void {
-    // Enhanced underwater lighting for textured materials
-    const ambientLight = new THREE.AmbientLight(0x4A90E2, 0.6) // Blue ambient for underwater feel
+    // Bright daylight underwater lighting
+    const ambientLight = new THREE.AmbientLight(0x87CEEB, 0.8) // Bright sky blue ambient
     this.scene.add(ambientLight)
     
-    // Main directional light (sunlight through water)
-    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.8)
-    directionalLight.position.set(50, 200, 50)
+    // Main directional light (bright sunlight through water)
+    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1.2)
+    directionalLight.position.set(50, 300, 50)
     directionalLight.castShadow = false // Disable shadows for performance
     this.scene.add(directionalLight)
     
     // Secondary fill light for better texture visibility
-    const fillLight = new THREE.DirectionalLight(0x87CEEB, 0.3) // Sky blue fill light
-    fillLight.position.set(-50, 100, -50)
+    const fillLight = new THREE.DirectionalLight(0xE6F3FF, 0.6) // Bright blue fill light
+    fillLight.position.set(-50, 150, -50)
     this.scene.add(fillLight)
     
-    // Subtle rim light for fish definition
-    const rimLight = new THREE.DirectionalLight(0xE6F3FF, 0.2) // Very light blue rim
-    rimLight.position.set(0, -50, 100)
-    this.scene.add(rimLight)
+    // Additional top light for sand floor visibility
+    const topLight = new THREE.DirectionalLight(0xFFFFFF, 0.8)
+    topLight.position.set(0, 200, 0)
+    this.scene.add(topLight)
   }
 
   private initializeFlockManager(): void {
     const bounds = new THREE.Box3(
-      new THREE.Vector3(-60, -30, -60), // Much smaller swimming area
-      new THREE.Vector3(60, 30, 60)
+      new THREE.Vector3(-100, -40, -100), // Larger swimming area
+      new THREE.Vector3(100, 40, 100)
     )
     
     const defaultBehavior: FishBehavior = {
       cohesionStrength: 1.0,
       separationStrength: 1.5,
       alignmentStrength: 1.0,
-      cohesionRadius: 25, // Much smaller radius for smaller space
-      separationRadius: 15,
-      alignmentRadius: 25,
-      maxSpeed: 20, // Much slower speed for smaller area
-      maxForce: 8,
-      maxAcceleration: 12,
+      cohesionRadius: 40, // Larger radius for bigger space
+      separationRadius: 20,
+      alignmentRadius: 40,
+      maxSpeed: 25, // Faster speed for bigger area
+      maxForce: 10,
+      maxAcceleration: 15,
       collisionAvoidanceStrength: 2.0, // Strong collision avoidance
       edgeAvoidanceStrength: 1.5, // Moderate edge avoidance
       environmentalForceStrength: 0.3 // Subtle environmental forces
@@ -177,21 +177,21 @@ export class SardinesScene {
       enableRocks: true,
       enableSeaweed: true,
       enablePlankton: true,
-      coralCount: 15,
-      rockCount: 25,
-      seaweedCount: 30,
-      planktonCount: 50
+      coralCount: 8, // Reduced from 15
+      rockCount: 15, // Reduced from 25
+      seaweedCount: 20, // Reduced from 30
+      planktonCount: 30 // Reduced from 50
     }
     
     this.underwaterEnvironment = new UnderwaterEnvironment(this.scene, config)
   }
 
   private setupEnvironment(): void {
-    // Deep underwater background color
-    this.scene.background = new THREE.Color(0x0B1426) // Deep water blue
+    // Bright daylight underwater background color
+    this.scene.background = new THREE.Color(0x4A90E2) // Bright blue water
     
-    // Add underwater fog for realistic atmosphere
-    this.scene.fog = new THREE.Fog(0x0B1426, 50, 200) // Fog starts at 50 units, fully foggy at 200
+    // Lighter fog for daylight underwater atmosphere
+    this.scene.fog = new THREE.Fog(0x4A90E2, 80, 300) // Fog starts at 80 units, fully foggy at 300
   }
 
   private addBoundaryVisualization(): void {
@@ -363,23 +363,26 @@ export class SardinesScene {
       this.controls.target.lerp(flockCenter, this.cameraLerpFactor * 2)
       this.controls.update()
     } else if (this.currentCameraMode === 'single-fish') {
-      // Single fish follow camera - follows one specific fish closely
+      // Single fish follow camera - smooth following with depth variation
       const targetFish = fish[0] // Follow the first fish
       const fishPosition = targetFish.physics.position.clone()
       
-      // Position camera behind and slightly above the fish
-      const offset = new THREE.Vector3(0, 2, 8) // Behind and above
-      const targetPosition = fishPosition.clone().add(offset)
+      // Calculate smooth depth variation based on fish Y position
+      const depthVariation = Math.sin(Date.now() * 0.001) * 5 // Gentle depth change
+      const targetDepth = fishPosition.y + depthVariation
       
-      // Smooth camera movement with faster response for close following
-      this.camera.position.lerp(targetPosition, this.cameraLerpFactor * 3)
-      this.controls.target.lerp(fishPosition, this.cameraLerpFactor * 3)
+      // Position camera further back and higher for smoother view
+      const offset = new THREE.Vector3(0, 8, 20) // Higher and further back
+      const targetPosition = new THREE.Vector3(
+        fishPosition.x + offset.x,
+        targetDepth + offset.y,
+        fishPosition.z + offset.z
+      )
+      
+      // Very smooth camera movement to reduce shaking
+      this.camera.position.lerp(targetPosition, this.cameraLerpFactor * 0.5)
+      this.controls.target.lerp(fishPosition, this.cameraLerpFactor * 0.5)
       this.controls.update()
-      
-      // Log fish position for debugging
-      if (Math.floor(Date.now() / 1000) % 5 === 0) { // Log every 5 seconds
-        console.log('Following fish at position:', fishPosition.toArray())
-      }
     }
   }
 

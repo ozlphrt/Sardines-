@@ -47,7 +47,7 @@ export class UnderwaterEnvironment {
 
   private createOceanFloor(): void {
     // Create a detailed ocean floor with sand texture
-    const floorGeometry = new THREE.PlaneGeometry(300, 300, 50, 50)
+    const floorGeometry = new THREE.PlaneGeometry(400, 400, 60, 60)
     
     // Add realistic sand dunes and variations
     const positionAttribute = floorGeometry.getAttribute('position')
@@ -56,9 +56,9 @@ export class UnderwaterEnvironment {
       const z = positionAttribute.getZ(i)
       
       // Create sand dunes with multiple noise layers
-      const noise1 = Math.sin(x * 0.05) * Math.cos(z * 0.03) * 3
-      const noise2 = Math.sin(x * 0.1) * Math.cos(z * 0.07) * 1.5
-      const noise3 = Math.sin(x * 0.02) * Math.cos(z * 0.015) * 5
+      const noise1 = Math.sin(x * 0.03) * Math.cos(z * 0.02) * 4
+      const noise2 = Math.sin(x * 0.08) * Math.cos(z * 0.05) * 2
+      const noise3 = Math.sin(x * 0.015) * Math.cos(z * 0.01) * 6
       const y = noise1 + noise2 + noise3
       
       positionAttribute.setY(i, y)
@@ -68,35 +68,22 @@ export class UnderwaterEnvironment {
     // Recalculate normals for proper lighting
     floorGeometry.computeVertexNormals()
     
-    // Create sand texture material
+    // Create bright sand texture material
     const floorMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(0xD2B48C), // Sand color
-      roughness: 0.9,
+      color: new THREE.Color(0xF4E4BC), // Bright sand color
+      roughness: 0.8,
       metalness: 0.0,
-      side: THREE.DoubleSide,
-      // Add some variation to simulate sand grains
-      onBeforeCompile: (shader) => {
-        shader.uniforms.time = { value: 0 }
-        shader.fragmentShader = shader.fragmentShader.replace(
-          '#include <dithering_fragment>',
-          `
-          #include <dithering_fragment>
-          // Add sand grain effect
-          float grain = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
-          gl_FragColor.rgb += grain * 0.1;
-          `
-        )
-      }
+      side: THREE.DoubleSide
     })
     
     this.oceanFloor = new THREE.Mesh(floorGeometry, floorMaterial)
     this.oceanFloor.rotation.x = -Math.PI / 2 // Rotate to be horizontal
-    this.oceanFloor.position.y = -40 // Position below swimming area
+    this.oceanFloor.position.y = -45 // Position below swimming area
     this.oceanFloor.receiveShadow = false
     this.oceanFloor.name = 'OceanFloor'
     
     this.scene.add(this.oceanFloor)
-    console.log('Detailed ocean floor created at Y = -40, size: 300x300')
+    console.log('Bright ocean floor created at Y = -45, size: 400x400')
   }
 
   private createEnvironment(): void {
@@ -111,12 +98,12 @@ export class UnderwaterEnvironment {
     for (let i = 0; i < this.config.coralCount; i++) {
       const coral = this.createComplexCoral()
       coral.position.set(
-        (Math.random() - 0.5) * 100, // X: -50 to 50
-        -38 + Math.random() * 2, // Y: Just above ocean floor
-        (Math.random() - 0.5) * 100  // Z: -50 to 50
+        (Math.random() - 0.5) * 150, // X: -75 to 75
+        -43 + Math.random() * 3, // Y: Just above ocean floor
+        (Math.random() - 0.5) * 150  // Z: -75 to 75
       )
       coral.rotation.y = Math.random() * Math.PI * 2
-      coral.scale.setScalar(0.8 + Math.random() * 0.8)
+      coral.scale.setScalar(0.6 + Math.random() * 0.6)
       this.coralGroup.add(coral)
     }
   }
@@ -167,16 +154,16 @@ export class UnderwaterEnvironment {
     for (let i = 0; i < this.config.rockCount; i++) {
       const rock = this.createDetailedRock()
       rock.position.set(
-        (Math.random() - 0.5) * 120, // X: -60 to 60
-        -38 + Math.random() * 4, // Y: Just above ocean floor with variation
-        (Math.random() - 0.5) * 120  // Z: -60 to 60
+        (Math.random() - 0.5) * 160, // X: -80 to 80
+        -43 + Math.random() * 5, // Y: Just above ocean floor with variation
+        (Math.random() - 0.5) * 160  // Z: -80 to 80
       )
       rock.rotation.set(
         Math.random() * Math.PI,
         Math.random() * Math.PI,
         Math.random() * Math.PI
       )
-      rock.scale.setScalar(1.5 + Math.random() * 2.5)
+      rock.scale.setScalar(1.2 + Math.random() * 2.0)
       this.rockGroup.add(rock)
     }
   }
@@ -238,12 +225,12 @@ export class UnderwaterEnvironment {
     for (let i = 0; i < this.config.seaweedCount; i++) {
       const seaweed = this.createDetailedSeaweed()
       seaweed.position.set(
-        (Math.random() - 0.5) * 110, // X: -55 to 55
-        -38, // Y: Just above ocean floor
-        (Math.random() - 0.5) * 110  // Z: -55 to 55
+        (Math.random() - 0.5) * 140, // X: -70 to 70
+        -43, // Y: Just above ocean floor
+        (Math.random() - 0.5) * 140  // Z: -70 to 70
       )
       seaweed.userData = { 
-        originalY: -38,
+        originalY: -43,
         swayOffset: Math.random() * Math.PI * 2,
         swaySpeed: 0.3 + Math.random() * 0.4,
         segments: []
@@ -285,9 +272,9 @@ export class UnderwaterEnvironment {
     for (let i = 0; i < this.config.planktonCount; i++) {
       const plankton = this.createDetailedPlankton()
       plankton.position.set(
-        (Math.random() - 0.5) * 140, // X: -70 to 70
-        (Math.random() - 0.5) * 50,  // Y: -25 to 25
-        (Math.random() - 0.5) * 140  // Z: -70 to 70
+        (Math.random() - 0.5) * 180, // X: -90 to 90
+        (Math.random() - 0.5) * 60,  // Y: -30 to 30
+        (Math.random() - 0.5) * 180  // Z: -90 to 90
       )
       plankton.userData = {
         floatOffset: Math.random() * Math.PI * 2,
@@ -385,9 +372,9 @@ export class UnderwaterEnvironment {
       plankton.rotation.x += userData.rotationSpeed * 0.5 * deltaTime
       
       // Keep plankton within bounds
-      plankton.position.x = Math.max(-70, Math.min(70, plankton.position.x))
-      plankton.position.y = Math.max(-38, Math.min(30, plankton.position.y))
-      plankton.position.z = Math.max(-70, Math.min(70, plankton.position.z))
+      plankton.position.x = Math.max(-90, Math.min(90, plankton.position.x))
+      plankton.position.y = Math.max(-43, Math.min(35, plankton.position.y))
+      plankton.position.z = Math.max(-90, Math.min(90, plankton.position.z))
     })
   }
 
