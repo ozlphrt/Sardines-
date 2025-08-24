@@ -18,6 +18,7 @@ export class UnderwaterEnvironment {
   private rockGroup: THREE.Group
   private seaweedGroup: THREE.Group
   private planktonGroup: THREE.Group
+  private oceanFloor: THREE.Mesh
   private seaweedAnimationTime: number = 0
   private planktonAnimationTime: number = 0
 
@@ -44,7 +45,39 @@ export class UnderwaterEnvironment {
     this.createEnvironment()
   }
 
+  private createOceanFloor(): void {
+    // Create a large ocean floor plane
+    const floorGeometry = new THREE.PlaneGeometry(200, 200, 20, 20)
+    
+    // Add some variation to the floor height
+    const positionAttribute = floorGeometry.getAttribute('position')
+    for (let i = 0; i < positionAttribute.count; i++) {
+      const x = positionAttribute.getX(i)
+      const z = positionAttribute.getZ(i)
+      const y = Math.sin(x * 0.1) * Math.cos(z * 0.1) * 2 // Gentle waves
+      positionAttribute.setY(i, y)
+    }
+    positionAttribute.needsUpdate = true
+    
+    // Recalculate normals for proper lighting
+    floorGeometry.computeVertexNormals()
+    
+    const floorMaterial = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(0x1B4F72), // Deep ocean blue
+      roughness: 0.9,
+      metalness: 0.0
+    })
+    
+    this.oceanFloor = new THREE.Mesh(floorGeometry, floorMaterial)
+    this.oceanFloor.rotation.x = -Math.PI / 2 // Rotate to be horizontal
+    this.oceanFloor.position.y = -30 // Position at bottom of swimming area
+    this.oceanFloor.receiveShadow = false
+    
+    this.scene.add(this.oceanFloor)
+  }
+
   private createEnvironment(): void {
+    this.createOceanFloor()
     if (this.config.enableCorals) this.createCorals()
     if (this.config.enableRocks) this.createRocks()
     if (this.config.enableSeaweed) this.createSeaweed()
@@ -56,7 +89,7 @@ export class UnderwaterEnvironment {
       const coral = this.createCoral()
       coral.position.set(
         (Math.random() - 0.5) * 80, // X: -40 to 40
-        -25, // Y: Ocean floor
+        -28, // Y: Just above ocean floor
         (Math.random() - 0.5) * 80  // Z: -40 to 40
       )
       coral.rotation.y = Math.random() * Math.PI * 2
@@ -84,7 +117,7 @@ export class UnderwaterEnvironment {
       const rock = this.createRock()
       rock.position.set(
         (Math.random() - 0.5) * 100, // X: -50 to 50
-        -25 + Math.random() * 2, // Y: Ocean floor with slight variation
+        -28 + Math.random() * 3, // Y: Just above ocean floor with variation
         (Math.random() - 0.5) * 100  // Z: -50 to 50
       )
       rock.rotation.set(
@@ -115,11 +148,11 @@ export class UnderwaterEnvironment {
       const seaweed = this.createSeaweedStalk()
       seaweed.position.set(
         (Math.random() - 0.5) * 90, // X: -45 to 45
-        -25, // Y: Ocean floor
+        -28, // Y: Just above ocean floor
         (Math.random() - 0.5) * 90  // Z: -45 to 45
       )
       seaweed.userData = { 
-        originalY: -25,
+        originalY: -28,
         swayOffset: Math.random() * Math.PI * 2,
         swaySpeed: 0.5 + Math.random() * 0.5
       }
@@ -197,7 +230,7 @@ export class UnderwaterEnvironment {
       
       // Keep plankton within bounds
       plankton.position.x = Math.max(-60, Math.min(60, plankton.position.x))
-      plankton.position.y = Math.max(-25, Math.min(25, plankton.position.y))
+      plankton.position.y = Math.max(-28, Math.min(25, plankton.position.y))
       plankton.position.z = Math.max(-60, Math.min(60, plankton.position.z))
     })
   }
@@ -219,5 +252,12 @@ export class UnderwaterEnvironment {
       })
       this.scene.remove(group)
     })
+    
+    // Clean up ocean floor
+    if (this.oceanFloor) {
+      this.oceanFloor.geometry.dispose()
+      this.oceanFloor.material.dispose()
+      this.scene.remove(this.oceanFloor)
+    }
   }
 }
