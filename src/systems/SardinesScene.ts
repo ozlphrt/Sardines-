@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { FlockManager, FlockConfig } from './FlockManager.js'
 import { FishBehavior } from './Fish.js'
 import { FishRenderer, FishRenderConfig } from './FishRenderer.js'
+import { UnderwaterEnvironment, UnderwaterConfig } from './UnderwaterEnvironment.js'
 import { useSimulationStore } from '../stores/simulationStore.js'
 
 export interface SceneStats {
@@ -21,6 +22,7 @@ export class SardinesScene {
   private controls: OrbitControls
   private flockManager: FlockManager | null = null
   private fishRenderer: FishRenderer | null = null
+  private underwaterEnvironment: UnderwaterEnvironment | null = null
   
   private isPaused: boolean = false
   private lastTime: number = 0
@@ -80,6 +82,9 @@ export class SardinesScene {
     // Initialize fish renderer
     this.initializeFishRenderer()
     
+    // Initialize underwater environment
+    this.initializeUnderwaterEnvironment()
+    
     // Add boundary visualization after flock manager is ready
     this.addBoundaryVisualization()
   }
@@ -108,20 +113,20 @@ export class SardinesScene {
 
   private initializeFlockManager(): void {
     const bounds = new THREE.Box3(
-      new THREE.Vector3(-200, -100, -200), // Reduced swimming area for better visibility
-      new THREE.Vector3(200, 100, 200)
+      new THREE.Vector3(-60, -30, -60), // Much smaller swimming area
+      new THREE.Vector3(60, 30, 60)
     )
     
     const defaultBehavior: FishBehavior = {
       cohesionStrength: 1.0,
       separationStrength: 1.5,
       alignmentStrength: 1.0,
-      cohesionRadius: 80, // Reduced radius for smaller space
-      separationRadius: 30,
-      alignmentRadius: 80,
-      maxSpeed: 40, // Reduced speed for smaller area
-      maxForce: 10,
-      maxAcceleration: 15,
+      cohesionRadius: 25, // Much smaller radius for smaller space
+      separationRadius: 15,
+      alignmentRadius: 25,
+      maxSpeed: 20, // Much slower speed for smaller area
+      maxForce: 8,
+      maxAcceleration: 12,
       collisionAvoidanceStrength: 2.0, // Strong collision avoidance
       edgeAvoidanceStrength: 1.5, // Moderate edge avoidance
       environmentalForceStrength: 0.3 // Subtle environmental forces
@@ -166,6 +171,21 @@ export class SardinesScene {
     }
   }
 
+  private initializeUnderwaterEnvironment(): void {
+    const config: UnderwaterConfig = {
+      enableCorals: true,
+      enableRocks: true,
+      enableSeaweed: true,
+      enablePlankton: true,
+      coralCount: 15,
+      rockCount: 25,
+      seaweedCount: 30,
+      planktonCount: 50
+    }
+    
+    this.underwaterEnvironment = new UnderwaterEnvironment(this.scene, config)
+  }
+
   private setupEnvironment(): void {
     // Simple background color
     this.scene.background = new THREE.Color(0x0B1426) // Deep water blue
@@ -207,6 +227,11 @@ export class SardinesScene {
     if (this.fishRenderer && this.flockManager) {
       const fish = this.flockManager.getFish()
       this.fishRenderer.updateFish(fish)
+    }
+
+    // Update underwater environment
+    if (this.underwaterEnvironment) {
+      this.underwaterEnvironment.update(deltaTime)
     }
 
          // Update special cameras (follow/action/single-fish modes)

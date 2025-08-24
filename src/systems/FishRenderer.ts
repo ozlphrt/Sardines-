@@ -35,10 +35,9 @@ export class FishRenderer {
   private testMixer: THREE.AnimationMixer | null = null
   private lastAnimationUpdateTime: number = 0
   
-  // Fish swimming animation properties
-  private fishAnimationTime: number = 0
-  private fishAnimationSpeed: number = 1.5 // Swimming speed
-  private fishTailWagAmount: number = 0.3 // How much the tail wags
+     // Fish swimming animation properties
+   private fishAnimationTime: number = 0
+   private fishAnimationSpeed: number = 1.5 // Swimming speed
 
   constructor(scene: THREE.Scene, config: FishRenderConfig) {
     this.scene = scene
@@ -162,10 +161,7 @@ export class FishRenderer {
         console.log('InstancedMesh created for', this.config.maxFishCount, 'fish')
       }
       
-             // Test animation with one fish if animations are available
-       if (gltf.animations && gltf.animations.length > 0) {
-         this.createTestAnimatedFish(gltf.scene, gltf.animations[0])
-       }
+             // Animation system ready for future implementation
        
        // Fish swimming animation is now applied to all fish in the flock
        console.log('Fish swimming animation system ready')
@@ -182,62 +178,7 @@ export class FishRenderer {
     }
   }
 
-  /**
-   * Create a test animated fish to verify animation works
-   */
-  private createTestAnimatedFish(model: THREE.Group, animation: THREE.AnimationClip): void {
-    try {
-      console.log('Creating test animated fish...')
-      
-      // Create a simple animated cube to test animation system
-      const testFish = new THREE.Mesh(
-        new THREE.BoxGeometry(10, 5, 15), // Simple fish-like box
-        new THREE.MeshStandardMaterial({ 
-          color: 0xFF0000, // Bright red
-          metalness: 0.1,
-          roughness: 0.8
-        })
-      )
-      
-      // Position it right in front of the camera where you can definitely see it
-      testFish.position.set(0, 0, 15) // 15 units in front of camera (very close!)
-      testFish.scale.setScalar(2) // Make it visible
-      
-      // Create a simple rotation animation to test the animation system
-      const rotationAnimation = new THREE.AnimationClip('TestRotation', 2, [
-        new THREE.VectorKeyframeTrack(
-          '.rotation[y]',
-          [0, 1, 2],
-          [0, Math.PI * 2, 0]
-        )
-      ])
-      
-      // Create animation mixer for this fish
-      const mixer = new THREE.AnimationMixer(testFish)
-      
-      // Play the simple rotation animation
-      const action = mixer.clipAction(rotationAnimation)
-      action.setLoop(THREE.LoopRepeat, Infinity)
-      action.play()
-      
-      console.log('Simple test animation created and playing')
-      console.log('Animation duration:', action.getClip().duration)
-      console.log('Animation is running:', action.isRunning())
-      
-      // Store mixer for updates
-      this.testMixer = mixer
-      
-      // Add to scene
-      this.scene.add(testFish)
-      
-      console.log('Test animated fish created and added to scene')
-      console.log('Test fish position:', testFish.position)
-      console.log('Test fish scale:', testFish.scale)
-      console.log('Test fish is visible:', testFish.visible)
-    } catch (error) {
-      console.error('Failed to create test animated fish:', error)
-    }
-  }
+  
 
   /**
    * Create fallback geometry if model loading fails
@@ -294,16 +235,7 @@ export class FishRenderer {
      const deltaTime = (currentTime - this.lastUpdateTime) * 0.001
      this.fishAnimationTime += deltaTime * this.fishAnimationSpeed
 
-     // Update test animation if it exists
-     if (this.testMixer) {
-       const deltaTime = (currentTime - this.lastAnimationUpdateTime) / 1000
-       this.testMixer.update(deltaTime)
-       this.lastAnimationUpdateTime = currentTime
-       // Log animation update every 60 frames (once per second at 60fps)
-       if (Math.floor(currentTime / 1000) % 1 === 0 && Math.floor(currentTime) % 60 === 0) {
-         console.log('Test animation updated, deltaTime:', deltaTime.toFixed(3))
-       }
-     }
+     
 
      // Fish swimming animation is handled in the matrix update loop below
 
