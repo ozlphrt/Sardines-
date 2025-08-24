@@ -181,23 +181,27 @@ export class FishRenderer {
     try {
       console.log('Creating test animated fish...')
       
-      // Create a proper mesh using the same geometry and material as the InstancedMesh
-      if (!this.geometry || !this.material) {
-        console.error('Cannot create test fish: geometry or material not available')
-        return
-      }
-      
-      // Create a new mesh with the same geometry and material
-      const testFish = new THREE.Mesh(this.geometry, this.material.clone())
+      // Clone the original model to preserve the skeletal structure for animation
+      const testFish = model.clone()
       
       // Position it right in front of the camera where you can definitely see it
       testFish.position.set(0, 0, 15) // 15 units in front of camera (very close!)
       testFish.scale.setScalar(this.config.scale * 30) // Make it MASSIVE (30x bigger)
       
       // Make it bright red so it's impossible to miss
-      if (testFish.material instanceof THREE.MeshStandardMaterial) {
-        testFish.material.color.setHex(0xFF0000) // Bright red
-      }
+      testFish.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach(mat => {
+              if (mat instanceof THREE.MeshStandardMaterial) {
+                mat.color.setHex(0xFF0000) // Bright red
+              }
+            })
+          } else if (child.material instanceof THREE.MeshStandardMaterial) {
+            child.material.color.setHex(0xFF0000) // Bright red
+          }
+        }
+      })
       
       // Create animation mixer for this fish
       const mixer = new THREE.AnimationMixer(testFish)
