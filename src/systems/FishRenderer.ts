@@ -185,8 +185,8 @@ export class FishRenderer {
       const testFish = model.clone()
       
              // Position it right in front of the camera where you can definitely see it
-       testFish.position.set(0, 0, 50) // 50 units in front of camera
-       testFish.scale.setScalar(this.config.scale * 20) // Make it MASSIVE (20x bigger)
+       testFish.position.set(0, 0, 15) // 15 units in front of camera (very close!)
+       testFish.scale.setScalar(this.config.scale * 30) // Make it MASSIVE (30x bigger)
        
        // Make it bright red so it's impossible to miss
        testFish.traverse((child) => {
