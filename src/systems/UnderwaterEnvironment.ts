@@ -47,7 +47,7 @@ export class UnderwaterEnvironment {
 
   private createOceanFloor(): void {
     // Create a detailed ocean floor with sand texture - expanded to match swimming area
-    const floorGeometry = new THREE.PlaneGeometry(250, 250, 50, 50)
+    const floorGeometry = new THREE.PlaneGeometry(250, 250, 40, 40)
     
     // Add realistic sand dunes and variations
     const positionAttribute = floorGeometry.getAttribute('position')
@@ -70,20 +70,20 @@ export class UnderwaterEnvironment {
     
     // Create bright sand texture material
     const floorMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(0xF4E4BC), // Bright sand color
-      roughness: 0.8,
+      color: new THREE.Color(0xF5DEB3), // Wheat sand color - more visible
+      roughness: 0.7,
       metalness: 0.0,
       side: THREE.DoubleSide
     })
     
     this.oceanFloor = new THREE.Mesh(floorGeometry, floorMaterial)
     this.oceanFloor.rotation.x = -Math.PI / 2 // Rotate to be horizontal
-    this.oceanFloor.position.y = -45 // Position below swimming area
+    this.oceanFloor.position.y = -42 // Position closer to swimming area
     this.oceanFloor.receiveShadow = false
     this.oceanFloor.name = 'OceanFloor'
     
     this.scene.add(this.oceanFloor)
-    console.log('Bright ocean floor created at Y = -45, size: 400x400')
+    console.log('Visible ocean floor created at Y = -42, size: 250x250')
   }
 
   private createEnvironment(): void {
@@ -111,36 +111,50 @@ export class UnderwaterEnvironment {
   private createComplexCoral(): THREE.Group {
     const coralGroup = new THREE.Group()
     
-    // Create branching coral structure
-    const createBranch = (height: number, radius: number, segments: number): THREE.Mesh => {
-      const geometry = new THREE.ConeGeometry(radius, height, segments)
-      geometry.rotateX(Math.PI / 2) // Point upward
+    // Create natural coral structure with varied colors
+    const coralColors = [
+      0x8B4513, // Saddle brown
+      0xCD853F, // Peru
+      0xD2691E, // Chocolate
+      0xDEB887, // Burlywood
+      0xF4A460, // Sandy brown
+      0xBC8F8F, // Rosy brown
+      0xDDA0DD, // Plum
+      0x98FB98  // Pale green
+    ]
+    
+    const createBranch = (height: number, radius: number, segments: number, color: number): THREE.Mesh => {
+      const geometry = new THREE.CylinderGeometry(radius * 0.3, radius, height, segments)
       
       const material = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(0xFF6B6B), // Coral red
-        roughness: 0.7,
-        metalness: 0.1
+        color: new THREE.Color(color),
+        roughness: 0.8,
+        metalness: 0.0
       })
       
       return new THREE.Mesh(geometry, material)
     }
     
     // Main trunk
-    const trunk = createBranch(12, 1.2, 8)
+    const trunkColor = coralColors[Math.floor(Math.random() * coralColors.length)]
+    const trunk = createBranch(8 + Math.random() * 6, 0.8, 8, trunkColor)
     coralGroup.add(trunk)
     
-    // Add branches
-    for (let i = 0; i < 3; i++) {
-      const branch = createBranch(6 + Math.random() * 4, 0.6, 6)
-      branch.position.y = 4 + i * 3
+    // Add natural branches
+    const branchCount = 2 + Math.floor(Math.random() * 4)
+    for (let i = 0; i < branchCount; i++) {
+      const branchColor = coralColors[Math.floor(Math.random() * coralColors.length)]
+      const branch = createBranch(4 + Math.random() * 3, 0.4, 6, branchColor)
+      branch.position.y = 2 + i * 2
       branch.rotation.z = Math.random() * Math.PI * 2
       branch.rotation.y = Math.random() * Math.PI * 2
       coralGroup.add(branch)
       
-      // Add smaller branches
-      for (let j = 0; j < 2; j++) {
-        const smallBranch = createBranch(3 + Math.random() * 2, 0.3, 4)
-        smallBranch.position.y = 2 + j * 2
+      // Add smaller branches occasionally
+      if (Math.random() > 0.5) {
+        const smallColor = coralColors[Math.floor(Math.random() * coralColors.length)]
+        const smallBranch = createBranch(2 + Math.random() * 2, 0.2, 4, smallColor)
+        smallBranch.position.y = 1 + Math.random() * 2
         smallBranch.rotation.z = Math.random() * Math.PI * 2
         smallBranch.rotation.y = Math.random() * Math.PI * 2
         branch.add(smallBranch)

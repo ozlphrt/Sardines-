@@ -118,18 +118,18 @@ export class SardinesScene {
     )
     
     const defaultBehavior: FishBehavior = {
-      cohesionStrength: 0.8,
-      separationStrength: 1.2,
-      alignmentStrength: 0.8,
-      cohesionRadius: 35, // Moderate radius
-      separationRadius: 15,
-      alignmentRadius: 35,
-      maxSpeed: 18, // Moderate speed for smoother movement
-      maxForce: 6, // Reduced force for less jittery movement
-      maxAcceleration: 8, // Reduced acceleration for smoother movement
-      collisionAvoidanceStrength: 1.5, // Moderate collision avoidance
-      edgeAvoidanceStrength: 1.0, // Gentle edge avoidance
-      environmentalForceStrength: 0.2 // Subtle environmental forces
+      cohesionStrength: 0.6,
+      separationStrength: 1.0,
+      alignmentStrength: 0.7,
+      cohesionRadius: 30, // Smaller radius for tighter groups
+      separationRadius: 12,
+      alignmentRadius: 30,
+      maxSpeed: 15, // Moderate speed for smooth movement
+      maxForce: 4, // Lower force for smoother movement
+      maxAcceleration: 6, // Lower acceleration for smoother movement
+      collisionAvoidanceStrength: 1.2, // Moderate collision avoidance
+      edgeAvoidanceStrength: 0.8, // Gentle edge avoidance
+      environmentalForceStrength: 0.1 // Very subtle environmental forces
     }
     
     const config: FlockConfig = {
@@ -190,8 +190,8 @@ export class SardinesScene {
     // Natural underwater background color
     this.scene.background = new THREE.Color(0x1B4F72) // Deep blue water
     
-    // Natural fog for underwater atmosphere
-    this.scene.fog = new THREE.Fog(0x1B4F72, 60, 200) // Fog starts at 60 units, fully foggy at 200
+    // Lighter fog for better visibility
+    this.scene.fog = new THREE.Fog(0x1B4F72, 120, 400) // Fog starts at 120 units, fully foggy at 400
   }
 
   private addBoundaryVisualization(): void {
