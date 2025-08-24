@@ -154,9 +154,9 @@ export class Fish {
   private calculateSwimMotion(deltaTime: number): THREE.Vector3 {
     const force = new THREE.Vector3()
     
-    // Forward swimming motion
+    // Forward swimming motion (reduced to let flocking dominate)
     const forwardForce = this.physics.targetDirection.clone().multiplyScalar(
-      this.behavior.maxSpeed * 0.1
+      this.behavior.maxSpeed * 0.05
     )
     force.add(forwardForce)
     
@@ -168,18 +168,20 @@ export class Fish {
     
     // Depth seeking behavior
     const depthDiff = this.physics.targetDepth - this.physics.position.y
-    const depthForce = new THREE.Vector3(0, depthDiff * 0.1, 0)
+    const depthForce = new THREE.Vector3(0, depthDiff * 0.05, 0)
     force.add(depthForce)
     
     return force
   }
 
   /**
-   * Calculate social forces from nearby fish
+   * Calculate social forces from nearby fish (enhanced flocking)
    */
   private calculateSocialForce(allFish: Fish[]): THREE.Vector3 {
     const force = new THREE.Vector3()
     let neighborCount = 0
+    const cohesionCenter = new THREE.Vector3()
+    const averageVelocity = new THREE.Vector3()
     
     allFish.forEach(other => {
       if (other.id === this.id || !other.isActive) return
@@ -187,25 +189,40 @@ export class Fish {
       const distance = this.physics.position.distanceTo(other.physics.position)
       
       if (distance < this.behavior.neighborRadius && distance > 0) {
-        // Separation force
+        // Separation force (stronger, prevents collision)
         if (distance < this.behavior.separationRadius) {
           const separation = this.physics.position.clone().sub(other.physics.position)
           separation.normalize().multiplyScalar(
-            (this.behavior.separationRadius - distance) * this.behavior.separationStrength
+            (this.behavior.separationRadius - distance) * this.behavior.separationStrength * 2.0
           )
           force.add(separation)
         }
         
-        // Alignment force (subtle influence)
+        // Cohesion force (attracts fish to flock center)
         if (distance < this.behavior.neighborRadius) {
-          const alignment = other.physics.velocity.clone().normalize().multiplyScalar(
-            this.behavior.neighborInfluence * 0.1
-          )
-          force.add(alignment)
+          cohesionCenter.add(other.physics.position)
+          averageVelocity.add(other.physics.velocity)
           neighborCount++
         }
       }
     })
+    
+    if (neighborCount > 0) {
+      // Calculate flock center
+      cohesionCenter.divideScalar(neighborCount)
+      const cohesionForce = cohesionCenter.clone().sub(this.physics.position)
+      cohesionForce.normalize().multiplyScalar(this.behavior.neighborInfluence * 0.8)
+      force.add(cohesionForce)
+      
+      // Alignment force (match flock direction)
+      averageVelocity.divideScalar(neighborCount)
+      if (averageVelocity.length() > 0.1) {
+        const alignmentForce = averageVelocity.clone().normalize().multiplyScalar(
+          this.behavior.neighborInfluence * 1.2
+        )
+        force.add(alignmentForce)
+      }
+    }
     
     // Apply social personality modifier
     force.multiplyScalar(this.physics.personality.socialMultiplier)
@@ -321,7 +338,7 @@ export class Fish {
    */
   public changeDirection(): void {
     const now = performance.now()
-    if (now - this.physics.lastDirectionChange > 2000 + Math.random() * 3000) { // 2-5 seconds
+    if (now - this.physics.lastDirectionChange > 5000 + Math.random() * 5000) { // 5-10 seconds
       this.physics.targetDirection.set(
         (Math.random() - 0.5) * 2,
         (Math.random() - 0.5) * 2,

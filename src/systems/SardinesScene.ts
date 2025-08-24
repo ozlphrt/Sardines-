@@ -119,26 +119,26 @@ export class SardinesScene {
     
     const defaultBehavior: FishBehavior = {
       // Basic movement parameters
-      maxSpeed: 12,
-      minSpeed: 4,
-      acceleration: 8,
-      turnSpeed: 2.0,
+      maxSpeed: 15,
+      minSpeed: 6,
+      acceleration: 10,
+      turnSpeed: 2.5,
       
       // Natural swimming behavior
-      swimFrequency: 2.5,
-      swimAmplitude: 0.3,
+      swimFrequency: 2.0,
+      swimAmplitude: 0.2,
       depthPreference: -10,
-      depthVariation: 20,
+      depthVariation: 15,
       
-      // Social behavior (simplified)
-      neighborRadius: 25,
-      neighborInfluence: 0.3,
-      separationRadius: 8,
-      separationStrength: 1.2,
+      // Social behavior (enhanced flocking)
+      neighborRadius: 35,
+      neighborInfluence: 0.8,
+      separationRadius: 12,
+      separationStrength: 2.0,
       
       // Environmental response
-      edgeAvoidanceRadius: 15,
-      edgeAvoidanceStrength: 0.8
+      edgeAvoidanceRadius: 20,
+      edgeAvoidanceStrength: 1.0
     }
     
     const config: FlockConfig = {
