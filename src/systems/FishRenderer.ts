@@ -235,9 +235,10 @@ export class FishRenderer {
      const deltaTime = (currentTime - this.lastUpdateTime) * 0.001
      this.fishAnimationTime += deltaTime * this.fishAnimationSpeed
 
-     
-
-     // Fish swimming animation is handled in the matrix update loop below
+     // Fish swimming animation properties
+     const tailWagAmount = 0.4 // How much the tail wags
+     const bodyUndulation = 0.3 // Body undulation (snake-like motion)
+     const swimmingSpeed = 2.0 // Swimming animation speed
 
     // Update frustum for culling
     if (this.config.enableFrustumCulling && this.camera) {
@@ -264,13 +265,19 @@ export class FishRenderer {
        // Set position
        this.tempVector.copy(fishInstance.physics.position)
        
-       // Force fish to stay upright - only use Y-axis rotation for turning
+              // Create realistic fish swimming animation
        const baseRotation = fishInstance.physics.rotation.clone()
        
-       // Keep fish upright by setting X and Z rotation to 0
+       // Add tail wagging animation (Y-axis rotation)
+       const tailWag = Math.sin(this.fishAnimationTime * swimmingSpeed + index * 0.5) * tailWagAmount
+       baseRotation.y += tailWag
+       
+       // Add body undulation (snake-like motion) - gentle Z-axis rotation
+       const undulation = Math.sin(this.fishAnimationTime * swimmingSpeed * 0.7 + index * 0.3) * bodyUndulation
+       baseRotation.z = undulation
+       
+       // Keep fish mostly upright but allow natural swimming motion
        baseRotation.x = 0 // No rolling (pitch)
-       baseRotation.z = 0 // No rolling (roll)
-       // Only keep Y rotation for left/right turning
        
        // Set rotation (convert Euler to Quaternion)
        this.tempQuaternion.setFromEuler(baseRotation)

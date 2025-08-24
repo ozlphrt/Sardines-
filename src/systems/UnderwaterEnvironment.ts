@@ -46,8 +46,8 @@ export class UnderwaterEnvironment {
   }
 
   private createOceanFloor(): void {
-    // Create a detailed ocean floor with sand texture
-    const floorGeometry = new THREE.PlaneGeometry(400, 400, 60, 60)
+    // Create a detailed ocean floor with sand texture - expanded to match swimming area
+    const floorGeometry = new THREE.PlaneGeometry(250, 250, 50, 50)
     
     // Add realistic sand dunes and variations
     const positionAttribute = floorGeometry.getAttribute('position')
@@ -98,9 +98,9 @@ export class UnderwaterEnvironment {
     for (let i = 0; i < this.config.coralCount; i++) {
       const coral = this.createComplexCoral()
       coral.position.set(
-        (Math.random() - 0.5) * 150, // X: -75 to 75
+        (Math.random() - 0.5) * 200, // X: -100 to 100 (match swimming area)
         -43 + Math.random() * 3, // Y: Just above ocean floor
-        (Math.random() - 0.5) * 150  // Z: -75 to 75
+        (Math.random() - 0.5) * 200  // Z: -100 to 100 (match swimming area)
       )
       coral.rotation.y = Math.random() * Math.PI * 2
       coral.scale.setScalar(0.6 + Math.random() * 0.6)
@@ -154,9 +154,9 @@ export class UnderwaterEnvironment {
     for (let i = 0; i < this.config.rockCount; i++) {
       const rock = this.createDetailedRock()
       rock.position.set(
-        (Math.random() - 0.5) * 160, // X: -80 to 80
+        (Math.random() - 0.5) * 200, // X: -100 to 100 (match swimming area)
         -43 + Math.random() * 5, // Y: Just above ocean floor with variation
-        (Math.random() - 0.5) * 160  // Z: -80 to 80
+        (Math.random() - 0.5) * 200  // Z: -100 to 100 (match swimming area)
       )
       rock.rotation.set(
         Math.random() * Math.PI,
@@ -225,9 +225,9 @@ export class UnderwaterEnvironment {
     for (let i = 0; i < this.config.seaweedCount; i++) {
       const seaweed = this.createDetailedSeaweed()
       seaweed.position.set(
-        (Math.random() - 0.5) * 140, // X: -70 to 70
+        (Math.random() - 0.5) * 200, // X: -100 to 100 (match swimming area)
         -43, // Y: Just above ocean floor
-        (Math.random() - 0.5) * 140  // Z: -70 to 70
+        (Math.random() - 0.5) * 200  // Z: -100 to 100 (match swimming area)
       )
       seaweed.userData = { 
         originalY: -43,
@@ -272,9 +272,9 @@ export class UnderwaterEnvironment {
     for (let i = 0; i < this.config.planktonCount; i++) {
       const plankton = this.createDetailedPlankton()
       plankton.position.set(
-        (Math.random() - 0.5) * 180, // X: -90 to 90
-        (Math.random() - 0.5) * 60,  // Y: -30 to 30
-        (Math.random() - 0.5) * 180  // Z: -90 to 90
+        (Math.random() - 0.5) * 200, // X: -100 to 100 (match swimming area)
+        (Math.random() - 0.5) * 80,  // Y: -40 to 40 (match swimming area)
+        (Math.random() - 0.5) * 200  // Z: -100 to 100 (match swimming area)
       )
       plankton.userData = {
         floatOffset: Math.random() * Math.PI * 2,
@@ -372,9 +372,9 @@ export class UnderwaterEnvironment {
       plankton.rotation.x += userData.rotationSpeed * 0.5 * deltaTime
       
       // Keep plankton within bounds
-      plankton.position.x = Math.max(-90, Math.min(90, plankton.position.x))
-      plankton.position.y = Math.max(-43, Math.min(35, plankton.position.y))
-      plankton.position.z = Math.max(-90, Math.min(90, plankton.position.z))
+      plankton.position.x = Math.max(-100, Math.min(100, plankton.position.x))
+      plankton.position.y = Math.max(-43, Math.min(40, plankton.position.y))
+      plankton.position.z = Math.max(-100, Math.min(100, plankton.position.z))
     })
   }
 

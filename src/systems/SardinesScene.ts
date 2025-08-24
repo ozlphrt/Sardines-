@@ -90,25 +90,25 @@ export class SardinesScene {
   }
 
   private setupLighting(): void {
-    // Bright daylight underwater lighting
-    const ambientLight = new THREE.AmbientLight(0x87CEEB, 0.8) // Bright sky blue ambient
+    // Natural underwater lighting
+    const ambientLight = new THREE.AmbientLight(0x4A90E2, 0.5) // Moderate blue ambient
     this.scene.add(ambientLight)
     
-    // Main directional light (bright sunlight through water)
-    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1.2)
-    directionalLight.position.set(50, 300, 50)
+    // Main directional light (sunlight through water)
+    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.8)
+    directionalLight.position.set(50, 200, 50)
     directionalLight.castShadow = false // Disable shadows for performance
     this.scene.add(directionalLight)
     
     // Secondary fill light for better texture visibility
-    const fillLight = new THREE.DirectionalLight(0xE6F3FF, 0.6) // Bright blue fill light
-    fillLight.position.set(-50, 150, -50)
+    const fillLight = new THREE.DirectionalLight(0x87CEEB, 0.4) // Blue fill light
+    fillLight.position.set(-50, 100, -50)
     this.scene.add(fillLight)
     
-    // Additional top light for sand floor visibility
-    const topLight = new THREE.DirectionalLight(0xFFFFFF, 0.8)
-    topLight.position.set(0, 200, 0)
-    this.scene.add(topLight)
+    // Subtle bottom light for floor visibility
+    const bottomLight = new THREE.DirectionalLight(0xE6F3FF, 0.3)
+    bottomLight.position.set(0, 150, 0)
+    this.scene.add(bottomLight)
   }
 
   private initializeFlockManager(): void {
@@ -118,18 +118,18 @@ export class SardinesScene {
     )
     
     const defaultBehavior: FishBehavior = {
-      cohesionStrength: 1.0,
-      separationStrength: 1.5,
-      alignmentStrength: 1.0,
-      cohesionRadius: 40, // Larger radius for bigger space
-      separationRadius: 20,
-      alignmentRadius: 40,
-      maxSpeed: 25, // Faster speed for bigger area
-      maxForce: 10,
-      maxAcceleration: 15,
-      collisionAvoidanceStrength: 2.0, // Strong collision avoidance
-      edgeAvoidanceStrength: 1.5, // Moderate edge avoidance
-      environmentalForceStrength: 0.3 // Subtle environmental forces
+      cohesionStrength: 0.8,
+      separationStrength: 1.2,
+      alignmentStrength: 0.8,
+      cohesionRadius: 35, // Moderate radius
+      separationRadius: 15,
+      alignmentRadius: 35,
+      maxSpeed: 18, // Moderate speed for smoother movement
+      maxForce: 6, // Reduced force for less jittery movement
+      maxAcceleration: 8, // Reduced acceleration for smoother movement
+      collisionAvoidanceStrength: 1.5, // Moderate collision avoidance
+      edgeAvoidanceStrength: 1.0, // Gentle edge avoidance
+      environmentalForceStrength: 0.2 // Subtle environmental forces
     }
     
     const config: FlockConfig = {
@@ -187,11 +187,11 @@ export class SardinesScene {
   }
 
   private setupEnvironment(): void {
-    // Bright daylight underwater background color
-    this.scene.background = new THREE.Color(0x4A90E2) // Bright blue water
+    // Natural underwater background color
+    this.scene.background = new THREE.Color(0x1B4F72) // Deep blue water
     
-    // Lighter fog for daylight underwater atmosphere
-    this.scene.fog = new THREE.Fog(0x4A90E2, 80, 300) // Fog starts at 80 units, fully foggy at 300
+    // Natural fog for underwater atmosphere
+    this.scene.fog = new THREE.Fog(0x1B4F72, 60, 200) // Fog starts at 60 units, fully foggy at 200
   }
 
   private addBoundaryVisualization(): void {
