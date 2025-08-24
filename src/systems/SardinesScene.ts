@@ -43,7 +43,7 @@ export class SardinesScene {
       0.1, // Near plane
       2000 // Far plane
     )
-    this.camera.position.set(0, -10, 30) // Lower camera position to see ocean floor
+    this.camera.position.set(0, -15, 40) // Lower camera position to see detailed ocean floor
     
     // Renderer configuration
     this.renderer = new THREE.WebGLRenderer({
@@ -187,10 +187,11 @@ export class SardinesScene {
   }
 
   private setupEnvironment(): void {
-    // Simple background color
+    // Deep underwater background color
     this.scene.background = new THREE.Color(0x0B1426) // Deep water blue
     
-    // Remove fog and particles to avoid shader issues
+    // Add underwater fog for realistic atmosphere
+    this.scene.fog = new THREE.Fog(0x0B1426, 50, 200) // Fog starts at 50 units, fully foggy at 200
   }
 
   private addBoundaryVisualization(): void {
