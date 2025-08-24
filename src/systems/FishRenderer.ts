@@ -184,9 +184,24 @@ export class FishRenderer {
       // Clone the model for the test fish
       const testFish = model.clone()
       
-             // Position it in the center where you can see it
-       testFish.position.set(0, 0, 0)
-       testFish.scale.setScalar(this.config.scale * 3) // Make it three times as big
+             // Position it high above the flock where you can definitely see it
+       testFish.position.set(0, 100, 0) // 100 units up in the air
+       testFish.scale.setScalar(this.config.scale * 10) // Make it HUGE (10x bigger)
+       
+       // Make it bright red so it's impossible to miss
+       testFish.traverse((child) => {
+         if (child instanceof THREE.Mesh && child.material) {
+           if (Array.isArray(child.material)) {
+             child.material.forEach(mat => {
+               if (mat instanceof THREE.MeshStandardMaterial) {
+                 mat.color.setHex(0xFF0000) // Bright red
+               }
+             })
+           } else if (child.material instanceof THREE.MeshStandardMaterial) {
+             child.material.color.setHex(0xFF0000) // Bright red
+           }
+         }
+       })
       
       // Create animation mixer for this fish
       const mixer = new THREE.AnimationMixer(testFish)
@@ -203,10 +218,13 @@ export class FishRenderer {
       // Store mixer for updates
       this.testMixer = mixer
       
-      // Add to scene
-      this.scene.add(testFish)
-      
-      console.log('Test animated fish created and added to scene')
+             // Add to scene
+       this.scene.add(testFish)
+       
+       console.log('Test animated fish created and added to scene')
+       console.log('Test fish position:', testFish.position)
+       console.log('Test fish scale:', testFish.scale)
+       console.log('Test fish is visible:', testFish.visible)
     } catch (error) {
       console.error('Failed to create test animated fish:', error)
     }
