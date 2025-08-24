@@ -22,17 +22,18 @@ export class FishRenderer {
   private tempVector: THREE.Vector3 = new THREE.Vector3()
   private tempQuaternion: THREE.Quaternion = new THREE.Quaternion()
   
-  // Performance optimization properties
-  private camera: THREE.Camera | null = null
-  private visibleFishCount: number = 0
-  private lastUpdateTime: number = 0
-  private updateInterval: number = 16 // Update every 16ms (60fps) for smooth movement
-  private frustum: THREE.Frustum = new THREE.Frustum()
-  private matrix: THREE.Matrix4 = new THREE.Matrix4()
-  private sphere: THREE.Sphere = new THREE.Sphere()
-  
-  // Test animation properties
-  private testMixer: THREE.AnimationMixer | null = null
+     // Performance optimization properties
+   private camera: THREE.Camera | null = null
+   private visibleFishCount: number = 0
+   private lastUpdateTime: number = 0
+   private updateInterval: number = 16 // Update every 16ms (60fps) for smooth movement
+   private frustum: THREE.Frustum = new THREE.Frustum()
+   private matrix: THREE.Matrix4 = new THREE.Matrix4()
+   private sphere: THREE.Sphere = new THREE.Sphere()
+   
+   // Test animation properties
+   private testMixer: THREE.AnimationMixer | null = null
+   private lastAnimationUpdateTime: number = 0
 
   constructor(scene: THREE.Scene, config: FishRenderConfig) {
     this.scene = scene
@@ -183,17 +184,21 @@ export class FishRenderer {
       // Clone the model for the test fish
       const testFish = model.clone()
       
-             // Position it away from the flock and make it more visible
-       testFish.position.set(150, 0, 150)
-       testFish.scale.setScalar(this.config.scale * 2) // Make it twice as big
+             // Position it in the center where you can see it
+       testFish.position.set(0, 0, 0)
+       testFish.scale.setScalar(this.config.scale * 3) // Make it three times as big
       
       // Create animation mixer for this fish
       const mixer = new THREE.AnimationMixer(testFish)
       
-      // Play the animation
-      const action = mixer.clipAction(animation)
-      action.setLoop(THREE.LoopRepeat, Infinity)
-      action.play()
+             // Play the animation
+       const action = mixer.clipAction(animation)
+       action.setLoop(THREE.LoopRepeat, Infinity)
+       action.play()
+       
+       console.log('Animation action created:', action.getClip().name)
+       console.log('Animation duration:', action.getClip().duration)
+       console.log('Animation is running:', action.isRunning())
       
       // Store mixer for updates
       this.testMixer = mixer
@@ -260,8 +265,9 @@ export class FishRenderer {
 
          // Update test animation if it exists
      if (this.testMixer) {
-       const deltaTime = (currentTime - this.lastUpdateTime) / 1000
+       const deltaTime = (currentTime - this.lastAnimationUpdateTime) / 1000
        this.testMixer.update(deltaTime)
+       this.lastAnimationUpdateTime = currentTime
        // Log animation update every 60 frames (once per second at 60fps)
        if (Math.floor(currentTime / 1000) % 1 === 0 && Math.floor(currentTime) % 60 === 0) {
          console.log('Test animation updated, deltaTime:', deltaTime.toFixed(3))
