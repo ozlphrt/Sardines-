@@ -183,9 +183,9 @@ export class FishRenderer {
       // Clone the model for the test fish
       const testFish = model.clone()
       
-      // Position it away from the flock
-      testFish.position.set(50, 0, 50)
-      testFish.scale.setScalar(this.config.scale)
+             // Position it away from the flock and make it more visible
+       testFish.position.set(150, 0, 150)
+       testFish.scale.setScalar(this.config.scale * 2) // Make it twice as big
       
       // Create animation mixer for this fish
       const mixer = new THREE.AnimationMixer(testFish)
@@ -258,11 +258,15 @@ export class FishRenderer {
     }
     this.lastUpdateTime = currentTime
 
-    // Update test animation if it exists
-    if (this.testMixer) {
-      const deltaTime = (currentTime - this.lastUpdateTime) / 1000
-      this.testMixer.update(deltaTime)
-    }
+         // Update test animation if it exists
+     if (this.testMixer) {
+       const deltaTime = (currentTime - this.lastUpdateTime) / 1000
+       this.testMixer.update(deltaTime)
+       // Log animation update every 60 frames (once per second at 60fps)
+       if (Math.floor(currentTime / 1000) % 1 === 0 && Math.floor(currentTime) % 60 === 0) {
+         console.log('Test animation updated, deltaTime:', deltaTime.toFixed(3))
+       }
+     }
 
     // Update frustum for culling
     if (this.config.enableFrustumCulling && this.camera) {
