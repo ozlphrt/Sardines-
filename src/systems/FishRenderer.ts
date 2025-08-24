@@ -37,7 +37,7 @@ export class FishRenderer {
   
   // Fish swimming animation properties
   private fishAnimationTime: number = 0
-  private fishAnimationSpeed: number = 2.0 // Swimming speed
+  private fishAnimationSpeed: number = 1.5 // Swimming speed
   private fishTailWagAmount: number = 0.3 // How much the tail wags
 
   constructor(scene: THREE.Scene, config: FishRenderConfig) {
@@ -335,17 +335,17 @@ export class FishRenderer {
        // Create swimming animation rotation
        const baseRotation = fishInstance.physics.rotation.clone()
        
-       // Add tail-wagging animation (gentle side-to-side movement)
-       const tailWag = Math.sin(this.fishAnimationTime + index * 0.1) * this.fishTailWagAmount
-       baseRotation.z += tailWag
+       // Add gentle swimming motion (side-to-side body sway)
+       const bodySway = Math.sin(this.fishAnimationTime + index * 0.1) * 0.15
+       baseRotation.y += bodySway
        
-       // Add slight body undulation (up and down movement)
-       const bodyUndulation = Math.sin(this.fishAnimationTime * 0.5 + index * 0.05) * 0.1
+       // Add slight up-and-down undulation for swimming motion
+       const bodyUndulation = Math.sin(this.fishAnimationTime * 0.8 + index * 0.05) * 0.08
        baseRotation.x += bodyUndulation
        
        // Debug: Log animation values for first fish only
        if (index === 0 && Math.floor(this.fishAnimationTime * 10) % 60 === 0) {
-         console.log('Fish animation - Time:', this.fishAnimationTime.toFixed(2), 'Tail wag:', tailWag.toFixed(3), 'Body undulation:', bodyUndulation.toFixed(3))
+         console.log('Fish animation - Time:', this.fishAnimationTime.toFixed(2), 'Body sway:', bodySway.toFixed(3), 'Body undulation:', bodyUndulation.toFixed(3))
        }
        
        // Set rotation (convert Euler to Quaternion)
