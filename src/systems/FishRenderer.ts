@@ -162,7 +162,12 @@ export class FishRenderer {
         console.log('InstancedMesh created for', this.config.maxFishCount, 'fish')
       }
       
-             // Fish swimming animation is now applied to all fish in the flock
+             // Test animation with one fish if animations are available
+       if (gltf.animations && gltf.animations.length > 0) {
+         this.createTestAnimatedFish(gltf.scene, gltf.animations[0])
+       }
+       
+       // Fish swimming animation is now applied to all fish in the flock
        console.log('Fish swimming animation system ready')
     
     // Optimize textures for performance
@@ -287,6 +292,17 @@ export class FishRenderer {
 
      // Update fish swimming animation time
      this.fishAnimationTime += (currentTime - this.lastUpdateTime) * 0.001 * this.fishAnimationSpeed
+
+     // Update test animation if it exists
+     if (this.testMixer) {
+       const deltaTime = (currentTime - this.lastAnimationUpdateTime) / 1000
+       this.testMixer.update(deltaTime)
+       this.lastAnimationUpdateTime = currentTime
+       // Log animation update every 60 frames (once per second at 60fps)
+       if (Math.floor(currentTime / 1000) % 1 === 0 && Math.floor(currentTime) % 60 === 0) {
+         console.log('Test animation updated, deltaTime:', deltaTime.toFixed(3))
+       }
+     }
 
      // Fish swimming animation is handled in the matrix update loop below
 
