@@ -35,9 +35,9 @@ export class FishRenderer {
   private testMixer: THREE.AnimationMixer | null = null
   private lastAnimationUpdateTime: number = 0
   
-     // Fish swimming animation properties
-   private fishAnimationTime: number = 0
-   private fishAnimationSpeed: number = 1.5 // Swimming speed
+         // Fish swimming animation properties
+    private fishAnimationTime: number = 0
+    private fishAnimationSpeed: number = 2.0 // Swimming speed
 
   constructor(scene: THREE.Scene, config: FishRenderConfig) {
     this.scene = scene

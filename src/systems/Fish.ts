@@ -1,28 +1,47 @@
 import * as THREE from 'three'
 
 export interface FishBehavior {
-  cohesionStrength: number
-  separationStrength: number
-  alignmentStrength: number
-  cohesionRadius: number
-  separationRadius: number
-  alignmentRadius: number
+  // Basic movement parameters
   maxSpeed: number
-  maxForce: number
-  maxAcceleration: number
-  collisionAvoidanceStrength: number
+  minSpeed: number
+  acceleration: number
+  turnSpeed: number
+  
+  // Natural swimming behavior
+  swimFrequency: number
+  swimAmplitude: number
+  depthPreference: number
+  depthVariation: number
+  
+  // Social behavior (simplified)
+  neighborRadius: number
+  neighborInfluence: number
+  separationRadius: number
+  separationStrength: number
+  
+  // Environmental response
+  edgeAvoidanceRadius: number
   edgeAvoidanceStrength: number
-  environmentalForceStrength: number
 }
 
 export interface FishPhysics {
   position: THREE.Vector3
   velocity: THREE.Vector3
-  acceleration: THREE.Vector3
+  targetDirection: THREE.Vector3
   rotation: THREE.Euler
   scale: THREE.Vector3
-  collisionRadius: number
-  lastCollisionTime: number
+  
+  // Individual fish characteristics
+  personality: {
+    speedMultiplier: number
+    turnMultiplier: number
+    socialMultiplier: number
+  }
+  
+  // Swimming state
+  swimPhase: number
+  targetDepth: number
+  lastDirectionChange: number
 }
 
 export class Fish {
@@ -38,303 +57,270 @@ export class Fish {
   ) {
     this.id = id
     this.behavior = { ...behavior }
+    
+    // Initialize physics with natural starting state
     this.physics = {
       position: position.clone(),
       velocity: new THREE.Vector3(
+        (Math.random() - 0.5) * this.behavior.maxSpeed * 0.5,
+        (Math.random() - 0.5) * this.behavior.maxSpeed * 0.3,
+        (Math.random() - 0.5) * this.behavior.maxSpeed * 0.5
+      ),
+      targetDirection: new THREE.Vector3(
         (Math.random() - 0.5) * 2,
         (Math.random() - 0.5) * 2,
         (Math.random() - 0.5) * 2
-      ),
-      acceleration: new THREE.Vector3(),
+      ).normalize(),
       rotation: new THREE.Euler(),
       scale: new THREE.Vector3(1, 1, 1),
-      collisionRadius: 2.0,
-      lastCollisionTime: 0
+      
+      // Individual personality traits
+      personality: {
+        speedMultiplier: 0.8 + Math.random() * 0.4, // 0.8 to 1.2
+        turnMultiplier: 0.7 + Math.random() * 0.6,  // 0.7 to 1.3
+        socialMultiplier: 0.5 + Math.random() * 1.0  // 0.5 to 1.5
+      },
+      
+      // Swimming state
+      swimPhase: Math.random() * Math.PI * 2,
+      targetDepth: this.behavior.depthPreference + (Math.random() - 0.5) * this.behavior.depthVariation,
+      lastDirectionChange: 0
     }
   }
 
   /**
-   * Calculate cohesion force - move toward center of nearby neighbors
-   */
-  public calculateCohesion(neighbors: Fish[]): THREE.Vector3 {
-    if (neighbors.length === 0) return new THREE.Vector3(0, 0, 0)
-
-    const center = new THREE.Vector3()
-    neighbors.forEach(neighbor => {
-      center.add(neighbor.physics.position)
-    })
-    center.divideScalar(neighbors.length)
-
-    const desired = center.sub(this.physics.position)
-    const distance = desired.length()
-
-    if (distance > 0) {
-      desired.normalize().multiplyScalar(this.behavior.maxSpeed)
-      return desired.sub(this.physics.velocity).clampLength(0, this.behavior.maxForce)
-    }
-
-    return new THREE.Vector3(0, 0, 0)
-  }
-
-  /**
-   * Calculate separation force - avoid crowding within minimum distance
-   */
-  public calculateSeparation(neighbors: Fish[]): THREE.Vector3 {
-    if (neighbors.length === 0) return new THREE.Vector3(0, 0, 0)
-
-    const steering = new THREE.Vector3()
-    let count = 0
-
-    neighbors.forEach(neighbor => {
-      const diff = this.physics.position.clone().sub(neighbor.physics.position)
-      const distance = diff.length()
-
-      if (distance > 0 && distance < this.behavior.separationRadius) {
-        diff.normalize().divideScalar(distance)
-        steering.add(diff)
-        count++
-      }
-    })
-
-    if (count > 0) {
-      steering.divideScalar(count)
-      steering.normalize().multiplyScalar(this.behavior.maxSpeed)
-      return steering.sub(this.physics.velocity).clampLength(0, this.behavior.maxForce)
-    }
-
-    return new THREE.Vector3(0, 0, 0)
-  }
-
-  /**
-   * Calculate alignment force - match velocity with neighbors
-   */
-  public calculateAlignment(neighbors: Fish[]): THREE.Vector3 {
-    if (neighbors.length === 0) return new THREE.Vector3(0, 0, 0)
-
-    const averageVelocity = new THREE.Vector3()
-    neighbors.forEach(neighbor => {
-      averageVelocity.add(neighbor.physics.velocity)
-    })
-    averageVelocity.divideScalar(neighbors.length)
-
-    if (averageVelocity.length() > 0) {
-      averageVelocity.normalize().multiplyScalar(this.behavior.maxSpeed)
-      return averageVelocity.sub(this.physics.velocity).clampLength(0, this.behavior.maxForce)
-    }
-
-    return new THREE.Vector3(0, 0, 0)
-  }
-
-  /**
-   * Calculate collision avoidance force
-   */
-  public calculateCollisionAvoidance(allFish: Fish[]): THREE.Vector3 {
-    const avoidanceForce = new THREE.Vector3()
-    let collisionCount = 0
-
-    allFish.forEach(other => {
-      if (other.id === this.id || !other.isActive) return
-
-      const distance = this.distanceTo(other)
-      const combinedRadius = this.physics.collisionRadius + other.physics.collisionRadius
-
-      if (distance < combinedRadius && distance > 0) {
-        // Collision detected - calculate avoidance force
-        const diff = this.physics.position.clone().sub(other.physics.position)
-        diff.normalize().multiplyScalar(combinedRadius - distance)
-        avoidanceForce.add(diff)
-        collisionCount++
-
-        // Record collision time
-        this.physics.lastCollisionTime = performance.now()
-      }
-    })
-
-    if (collisionCount > 0) {
-      avoidanceForce.divideScalar(collisionCount)
-      avoidanceForce.normalize().multiplyScalar(this.behavior.maxSpeed)
-      return avoidanceForce.sub(this.physics.velocity).clampLength(0, this.behavior.maxForce)
-    }
-
-    return new THREE.Vector3(0, 0, 0)
-  }
-
-  /**
-   * Calculate edge avoidance force - gradual steering away from boundaries
-   */
-  public calculateEdgeAvoidance(bounds: THREE.Box3): THREE.Vector3 {
-    const edgeForce = new THREE.Vector3()
-    const pos = this.physics.position
-    const margin = 20 // Distance from edge where avoidance starts
-
-    // X-axis edge avoidance
-    if (pos.x < bounds.min.x + margin) {
-      const strength = (margin - (pos.x - bounds.min.x)) / margin
-      edgeForce.x = strength * this.behavior.edgeAvoidanceStrength
-    } else if (pos.x > bounds.max.x - margin) {
-      const strength = (margin - (bounds.max.x - pos.x)) / margin
-      edgeForce.x = -strength * this.behavior.edgeAvoidanceStrength
-    }
-
-    // Y-axis edge avoidance
-    if (pos.y < bounds.min.y + margin) {
-      const strength = (margin - (pos.y - bounds.min.y)) / margin
-      edgeForce.y = strength * this.behavior.edgeAvoidanceStrength
-    } else if (pos.y > bounds.max.y - margin) {
-      const strength = (margin - (bounds.max.y - pos.y)) / margin
-      edgeForce.y = -strength * this.behavior.edgeAvoidanceStrength
-    }
-
-    // Z-axis edge avoidance
-    if (pos.z < bounds.min.z + margin) {
-      const strength = (margin - (pos.z - bounds.min.z)) / margin
-      edgeForce.z = strength * this.behavior.edgeAvoidanceStrength
-    } else if (pos.z > bounds.max.z - margin) {
-      const strength = (margin - (bounds.max.z - pos.z)) / margin
-      edgeForce.z = -strength * this.behavior.edgeAvoidanceStrength
-    }
-
-    if (edgeForce.length() > 0) {
-      edgeForce.normalize().multiplyScalar(this.behavior.maxSpeed)
-      return edgeForce.sub(this.physics.velocity).clampLength(0, this.behavior.maxForce)
-    }
-
-    return new THREE.Vector3(0, 0, 0)
-  }
-
-  /**
-   * Calculate environmental forces (currents, obstacles)
-   */
-  public calculateEnvironmentalForces(): THREE.Vector3 {
-    const environmentalForce = new THREE.Vector3()
-
-    // Simulate underwater currents
-    const currentStrength = this.behavior.environmentalForceStrength * 0.1
-    environmentalForce.x = Math.sin(this.physics.position.x * 0.01) * currentStrength
-    environmentalForce.y = Math.cos(this.physics.position.y * 0.01) * currentStrength
-    environmentalForce.z = Math.sin(this.physics.position.z * 0.01) * currentStrength
-
-    // Add some randomness for more natural movement
-    const randomForce = new THREE.Vector3(
-      (Math.random() - 0.5) * this.behavior.environmentalForceStrength * 0.05,
-      (Math.random() - 0.5) * this.behavior.environmentalForceStrength * 0.05,
-      (Math.random() - 0.5) * this.behavior.environmentalForceStrength * 0.05
-    )
-    environmentalForce.add(randomForce)
-
-    return environmentalForce.clampLength(0, this.behavior.maxForce * 0.5)
-  }
-
-  /**
-   * Find neighbors within specified radius
-   */
-  public findNeighbors(fish: Fish[], radius: number): Fish[] {
-    return fish.filter(other => {
-      if (other.id === this.id || !other.isActive) return false
-      const distance = this.physics.position.distanceTo(other.physics.position)
-      return distance <= radius
-    })
-  }
-
-  /**
-   * Apply flocking forces and update physics
+   * Update fish movement with natural swimming behavior
    */
   public update(deltaTime: number, allFish: Fish[], bounds: THREE.Box3): void {
     if (!this.isActive) return
 
-    // Find neighbors for each behavior (optimized)
-    const cohesionNeighbors = this.findNeighbors(allFish, this.behavior.cohesionRadius)
-    const separationNeighbors = this.findNeighbors(allFish, this.behavior.separationRadius)
-    const alignmentNeighbors = this.findNeighbors(allFish, this.behavior.alignmentRadius)
-
-    // Calculate flocking forces
-    const cohesionForce = this.calculateCohesion(cohesionNeighbors)
-      .multiplyScalar(this.behavior.cohesionStrength)
+    // Update swimming phase
+    this.physics.swimPhase += this.behavior.swimFrequency * deltaTime
     
-    const separationForce = this.calculateSeparation(separationNeighbors)
-      .multiplyScalar(this.behavior.separationStrength)
+    // Calculate natural swimming motion
+    const swimMotion = this.calculateSwimMotion(deltaTime)
     
-    const alignmentForce = this.calculateAlignment(alignmentNeighbors)
-      .multiplyScalar(this.behavior.alignmentStrength)
-
-    // Calculate advanced physics forces (simplified for performance)
-    const collisionAvoidanceForce = this.calculateCollisionAvoidance(allFish)
-      .multiplyScalar(this.behavior.collisionAvoidanceStrength)
+    // Calculate social influences
+    const socialForce = this.calculateSocialForce(allFish)
     
-    const edgeAvoidanceForce = this.calculateEdgeAvoidance(bounds)
-      .multiplyScalar(this.behavior.edgeAvoidanceStrength)
+    // Calculate environmental responses
+    const environmentalForce = this.calculateEnvironmentalForce(bounds)
     
-    // Calculate environmental forces (simplified for performance)
-    const environmentalForce = this.calculateEnvironmentalForces()
-      .multiplyScalar(this.behavior.environmentalForceStrength)
-
-    // Apply all forces
-    this.physics.acceleration.add(cohesionForce)
-    this.physics.acceleration.add(separationForce)
-    this.physics.acceleration.add(alignmentForce)
-    this.physics.acceleration.add(collisionAvoidanceForce)
-    this.physics.acceleration.add(edgeAvoidanceForce)
-    this.physics.acceleration.add(environmentalForce)
-
-    // Clamp acceleration
-    this.physics.acceleration.clampLength(0, this.behavior.maxAcceleration)
-
-    // Update velocity
-    this.physics.velocity.add(this.physics.acceleration.clone().multiplyScalar(deltaTime))
-
-    // Clamp speed
-    this.physics.velocity.clampLength(0, this.behavior.maxSpeed)
-
-    // Update position
-    this.physics.position.add(this.physics.velocity.clone().multiplyScalar(deltaTime))
-
-    // Update rotation to face direction of movement (simplified for performance)
-    if (this.physics.velocity.length() > 0.1) {
-      const direction = this.physics.velocity.clone().normalize()
-      this.physics.rotation.setFromQuaternion(
-        new THREE.Quaternion().setFromUnitVectors(
-          new THREE.Vector3(0, 0, 1), // Fish model forward direction
-          direction
-        )
+    // Combine all forces
+    const totalForce = new THREE.Vector3()
+    totalForce.add(swimMotion)
+    totalForce.add(socialForce)
+    totalForce.add(environmentalForce)
+    
+    // Apply personality modifiers
+    totalForce.multiplyScalar(this.physics.personality.speedMultiplier)
+    
+    // Update velocity with smooth acceleration
+    const acceleration = totalForce.clone().multiplyScalar(this.behavior.acceleration * deltaTime)
+    this.physics.velocity.add(acceleration)
+    
+    // Clamp speed to natural range
+    const currentSpeed = this.physics.velocity.length()
+    const targetSpeed = this.behavior.minSpeed + (this.behavior.maxSpeed - this.behavior.minSpeed) * 
+                       (0.5 + Math.sin(this.physics.swimPhase) * 0.3)
+    
+    if (currentSpeed > 0) {
+      this.physics.velocity.normalize().multiplyScalar(
+        Math.max(this.behavior.minSpeed, Math.min(this.behavior.maxSpeed, targetSpeed))
       )
     }
-
-    // Reset acceleration
-    this.physics.acceleration.set(0, 0, 0)
+    
+    // Update position
+    this.physics.position.add(this.physics.velocity.clone().multiplyScalar(deltaTime))
+    
+    // Update rotation to face movement direction
+    this.updateRotation(deltaTime)
+    
+    // Apply boundaries
+    this.applyBoundaries(bounds)
   }
 
   /**
-   * Apply boundary constraints
+   * Calculate natural swimming motion with undulation
    */
-  public applyBoundaries(bounds: THREE.Box3): void {
+  private calculateSwimMotion(deltaTime: number): THREE.Vector3 {
+    const force = new THREE.Vector3()
+    
+    // Forward swimming motion
+    const forwardForce = this.physics.targetDirection.clone().multiplyScalar(
+      this.behavior.maxSpeed * 0.1
+    )
+    force.add(forwardForce)
+    
+    // Natural undulation (side-to-side motion)
+    const undulation = Math.sin(this.physics.swimPhase) * this.behavior.swimAmplitude
+    const rightVector = new THREE.Vector3(1, 0, 0)
+    rightVector.applyQuaternion(new THREE.Quaternion().setFromEuler(this.physics.rotation))
+    force.add(rightVector.multiplyScalar(undulation))
+    
+    // Depth seeking behavior
+    const depthDiff = this.physics.targetDepth - this.physics.position.y
+    const depthForce = new THREE.Vector3(0, depthDiff * 0.1, 0)
+    force.add(depthForce)
+    
+    return force
+  }
+
+  /**
+   * Calculate social forces from nearby fish
+   */
+  private calculateSocialForce(allFish: Fish[]): THREE.Vector3 {
+    const force = new THREE.Vector3()
+    let neighborCount = 0
+    
+    allFish.forEach(other => {
+      if (other.id === this.id || !other.isActive) return
+      
+      const distance = this.physics.position.distanceTo(other.physics.position)
+      
+      if (distance < this.behavior.neighborRadius && distance > 0) {
+        // Separation force
+        if (distance < this.behavior.separationRadius) {
+          const separation = this.physics.position.clone().sub(other.physics.position)
+          separation.normalize().multiplyScalar(
+            (this.behavior.separationRadius - distance) * this.behavior.separationStrength
+          )
+          force.add(separation)
+        }
+        
+        // Alignment force (subtle influence)
+        if (distance < this.behavior.neighborRadius) {
+          const alignment = other.physics.velocity.clone().normalize().multiplyScalar(
+            this.behavior.neighborInfluence * 0.1
+          )
+          force.add(alignment)
+          neighborCount++
+        }
+      }
+    })
+    
+    // Apply social personality modifier
+    force.multiplyScalar(this.physics.personality.socialMultiplier)
+    
+    return force
+  }
+
+  /**
+   * Calculate environmental forces (boundaries, currents)
+   */
+  private calculateEnvironmentalForce(bounds: THREE.Box3): THREE.Vector3 {
+    const force = new THREE.Vector3()
+    const pos = this.physics.position
+    
+    // Edge avoidance
+    const margin = this.behavior.edgeAvoidanceRadius
+    
+    // X-axis edge avoidance
+    if (pos.x < bounds.min.x + margin) {
+      force.x = (margin - (pos.x - bounds.min.x)) * this.behavior.edgeAvoidanceStrength
+    } else if (pos.x > bounds.max.x - margin) {
+      force.x = -(margin - (bounds.max.x - pos.x)) * this.behavior.edgeAvoidanceStrength
+    }
+    
+    // Y-axis edge avoidance
+    if (pos.y < bounds.min.y + margin) {
+      force.y = (margin - (pos.y - bounds.min.y)) * this.behavior.edgeAvoidanceStrength
+    } else if (pos.y > bounds.max.y - margin) {
+      force.y = -(margin - (bounds.max.y - pos.y)) * this.behavior.edgeAvoidanceStrength
+    }
+    
+    // Z-axis edge avoidance
+    if (pos.z < bounds.min.z + margin) {
+      force.z = (margin - (pos.z - bounds.min.z)) * this.behavior.edgeAvoidanceStrength
+    } else if (pos.z > bounds.max.z - margin) {
+      force.z = -(margin - (bounds.max.z - pos.z)) * this.behavior.edgeAvoidanceStrength
+    }
+    
+    // Subtle underwater currents
+    const currentStrength = 0.02
+    force.x += Math.sin(pos.x * 0.01) * currentStrength
+    force.y += Math.cos(pos.y * 0.01) * currentStrength * 0.5
+    force.z += Math.sin(pos.z * 0.01) * currentStrength
+    
+    return force
+  }
+
+  /**
+   * Update rotation to face movement direction with smooth turning
+   */
+  private updateRotation(deltaTime: number): void {
+    if (this.physics.velocity.length() > 0.1) {
+      const targetDirection = this.physics.velocity.clone().normalize()
+      
+      // Calculate target rotation
+      const targetRotation = new THREE.Euler()
+      targetRotation.setFromQuaternion(
+        new THREE.Quaternion().setFromUnitVectors(
+          new THREE.Vector3(0, 0, 1), // Fish forward direction
+          targetDirection
+        )
+      )
+      
+      // Smooth rotation interpolation
+      const turnSpeed = this.behavior.turnSpeed * this.physics.personality.turnMultiplier * deltaTime
+      this.physics.rotation.x += (targetRotation.x - this.physics.rotation.x) * turnSpeed
+      this.physics.rotation.y += (targetRotation.y - this.physics.rotation.y) * turnSpeed
+      this.physics.rotation.z += (targetRotation.z - this.physics.rotation.z) * turnSpeed
+      
+      // Keep fish upright (no rolling)
+      this.physics.rotation.z = Math.max(-0.2, Math.min(0.2, this.physics.rotation.z))
+    }
+  }
+
+  /**
+   * Apply boundary constraints with bounce
+   */
+  private applyBoundaries(bounds: THREE.Box3): void {
     const margin = 1
     const pos = this.physics.position
-
+    const vel = this.physics.velocity
+    
     // X-axis boundaries
     if (pos.x < bounds.min.x + margin) {
       pos.x = bounds.min.x + margin
-      this.physics.velocity.x = Math.abs(this.physics.velocity.x) * 0.5
+      vel.x = Math.abs(vel.x) * 0.8
     } else if (pos.x > bounds.max.x - margin) {
       pos.x = bounds.max.x - margin
-      this.physics.velocity.x = -Math.abs(this.physics.velocity.x) * 0.5
+      vel.x = -Math.abs(vel.x) * 0.8
     }
-
+    
     // Y-axis boundaries
     if (pos.y < bounds.min.y + margin) {
       pos.y = bounds.min.y + margin
-      this.physics.velocity.y = Math.abs(this.physics.velocity.y) * 0.5
+      vel.y = Math.abs(vel.y) * 0.8
     } else if (pos.y > bounds.max.y - margin) {
       pos.y = bounds.max.y - margin
-      this.physics.velocity.y = -Math.abs(this.physics.velocity.y) * 0.5
+      vel.y = -Math.abs(vel.y) * 0.8
     }
-
+    
     // Z-axis boundaries
     if (pos.z < bounds.min.z + margin) {
       pos.z = bounds.min.z + margin
-      this.physics.velocity.z = Math.abs(this.physics.velocity.z) * 0.5
+      vel.z = Math.abs(vel.z) * 0.8
     } else if (pos.z > bounds.max.z - margin) {
       pos.z = bounds.max.z - margin
-      this.physics.velocity.z = -Math.abs(this.physics.velocity.z) * 0.5
+      vel.z = -Math.abs(vel.z) * 0.8
+    }
+  }
+
+  /**
+   * Occasionally change swimming direction for natural behavior
+   */
+  public changeDirection(): void {
+    const now = performance.now()
+    if (now - this.physics.lastDirectionChange > 2000 + Math.random() * 3000) { // 2-5 seconds
+      this.physics.targetDirection.set(
+        (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 2
+      ).normalize()
+      
+      this.physics.lastDirectionChange = now
     }
   }
 
