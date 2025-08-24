@@ -152,15 +152,15 @@ export class FishRenderer {
         this.instancedMesh.castShadow = this.config.enableShadows
         this.instancedMesh.receiveShadow = this.config.enableShadows
 
-              // Add to scene
-      this.scene.add(this.instancedMesh)
-      console.log('InstancedMesh created for', this.config.maxFishCount, 'fish')
-    }
-    
-    // Test animation with one fish if animations are available
-    if (gltf.animations && gltf.animations.length > 0) {
-      this.createTestAnimatedFish(gltf.scene, gltf.animations[0])
-    }
+        // Add to scene
+        this.scene.add(this.instancedMesh)
+        console.log('InstancedMesh created for', this.config.maxFishCount, 'fish')
+      }
+      
+      // Test animation with one fish if animations are available
+      if (gltf.animations && gltf.animations.length > 0) {
+        this.createTestAnimatedFish(gltf.scene, gltf.animations[0])
+      }
     
     // Optimize textures for performance
     this.updateTextureSettings()
@@ -181,50 +181,46 @@ export class FishRenderer {
     try {
       console.log('Creating test animated fish...')
       
-      // Clone the model for the test fish
-      const testFish = model.clone()
+      // Create a proper mesh using the same geometry and material as the InstancedMesh
+      if (!this.geometry || !this.material) {
+        console.error('Cannot create test fish: geometry or material not available')
+        return
+      }
       
-             // Position it right in front of the camera where you can definitely see it
-       testFish.position.set(0, 0, 15) // 15 units in front of camera (very close!)
-       testFish.scale.setScalar(this.config.scale * 30) // Make it MASSIVE (30x bigger)
-       
-       // Make it bright red so it's impossible to miss
-       testFish.traverse((child) => {
-         if (child instanceof THREE.Mesh && child.material) {
-           if (Array.isArray(child.material)) {
-             child.material.forEach(mat => {
-               if (mat instanceof THREE.MeshStandardMaterial) {
-                 mat.color.setHex(0xFF0000) // Bright red
-               }
-             })
-           } else if (child.material instanceof THREE.MeshStandardMaterial) {
-             child.material.color.setHex(0xFF0000) // Bright red
-           }
-         }
-       })
+      // Create a new mesh with the same geometry and material
+      const testFish = new THREE.Mesh(this.geometry, this.material.clone())
+      
+      // Position it right in front of the camera where you can definitely see it
+      testFish.position.set(0, 0, 15) // 15 units in front of camera (very close!)
+      testFish.scale.setScalar(this.config.scale * 30) // Make it MASSIVE (30x bigger)
+      
+      // Make it bright red so it's impossible to miss
+      if (testFish.material instanceof THREE.MeshStandardMaterial) {
+        testFish.material.color.setHex(0xFF0000) // Bright red
+      }
       
       // Create animation mixer for this fish
       const mixer = new THREE.AnimationMixer(testFish)
       
-             // Play the animation
-       const action = mixer.clipAction(animation)
-       action.setLoop(THREE.LoopRepeat, Infinity)
-       action.play()
-       
-       console.log('Animation action created:', action.getClip().name)
-       console.log('Animation duration:', action.getClip().duration)
-       console.log('Animation is running:', action.isRunning())
+      // Play the animation
+      const action = mixer.clipAction(animation)
+      action.setLoop(THREE.LoopRepeat, Infinity)
+      action.play()
+      
+      console.log('Animation action created:', action.getClip().name)
+      console.log('Animation duration:', action.getClip().duration)
+      console.log('Animation is running:', action.isRunning())
       
       // Store mixer for updates
       this.testMixer = mixer
       
-             // Add to scene
-       this.scene.add(testFish)
-       
-       console.log('Test animated fish created and added to scene')
-       console.log('Test fish position:', testFish.position)
-       console.log('Test fish scale:', testFish.scale)
-       console.log('Test fish is visible:', testFish.visible)
+      // Add to scene
+      this.scene.add(testFish)
+      
+      console.log('Test animated fish created and added to scene')
+      console.log('Test fish position:', testFish.position)
+      console.log('Test fish scale:', testFish.scale)
+      console.log('Test fish is visible:', testFish.visible)
     } catch (error) {
       console.error('Failed to create test animated fish:', error)
     }
