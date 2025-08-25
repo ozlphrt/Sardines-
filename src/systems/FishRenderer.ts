@@ -21,6 +21,7 @@ export class FishRenderer {
   private config: FishRenderConfig
   private tempVector: THREE.Vector3 = new THREE.Vector3()
   private tempQuaternion: THREE.Quaternion = new THREE.Quaternion()
+  private tempColor: THREE.Color = new THREE.Color()
   
   // Performance optimization properties
   private camera: THREE.Camera | null = null
@@ -113,11 +114,28 @@ export class FishRenderer {
           this.material.side = THREE.DoubleSide
           this.material.transparent = false
           
-          // Add subtle underwater lighting adjustments
+          // Realistic sardine appearance - bright with strong metallic shine
           if (this.material instanceof THREE.MeshStandardMaterial) {
-            this.material.metalness = 0.1 // Reduce metalness for fish
-            this.material.roughness = 0.8 // Increase roughness for natural look
-            this.material.envMapIntensity = 0.3 // Reduce environment reflection
+            this.material.metalness = 0.8 // Strong metalness for authentic sardine shine
+            this.material.roughness = 0.7 // Keep natural fish skin texture
+            this.material.envMapIntensity = 0.9 // Enhanced environment reflection
+            
+            // Brighten the fish with enhanced sardine coloring
+            this.material.color.setHex(0xE8F4FD) // Brighter silver-blue sardine color
+            
+            // Enhance brightness and reflectivity
+            if (this.material.map) {
+              this.material.transparent = false
+              this.material.opacity = 1.0
+              // Increase texture brightness
+              this.material.map.colorSpace = THREE.SRGBColorSpace
+            }
+            
+            // Add emissive glow for realistic sardine shine
+            this.material.emissive.setHex(0x1A3D5C) // Subtle blue emissive glow
+            this.material.emissiveIntensity = 0.12 // Enhanced glow intensity
+            
+            console.log('Applied realistic bright sardine material properties')
           }
           
           console.log('Using original material with textures:', this.material.name)
@@ -135,7 +153,13 @@ export class FishRenderer {
           this.material,
           this.config.maxFishCount
         )
-        console.log('InstancedMesh created for', this.config.maxFishCount, 'fish')
+        
+        // Enable instance colors for individual brightness variations
+        this.instancedMesh.instanceColor = new THREE.InstancedBufferAttribute(
+          new Float32Array(this.config.maxFishCount * 3), 3
+        )
+        
+        console.log('InstancedMesh created for', this.config.maxFishCount, 'fish with instance colors')
       }
 
       // Configure instanced mesh
@@ -172,9 +196,12 @@ export class FishRenderer {
     
     this.geometry = fishGeometry
     this.material = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(0x4A90E2), // Blue fish color
-      metalness: 0.1,
-      roughness: 0.8,
+      color: new THREE.Color(0xE8F4FD), // Brighter silver-blue sardine color
+      metalness: 0.8, // Strong metalness for authentic sardine shine
+      roughness: 0.7, // Keep natural fish skin texture
+      envMapIntensity: 0.9, // Enhanced environment reflection
+      emissive: new THREE.Color(0x1A3D5C), // Subtle blue emissive glow
+      emissiveIntensity: 0.12, // Enhanced glow intensity
       transparent: false,
       side: THREE.DoubleSide
     })
@@ -185,10 +212,15 @@ export class FishRenderer {
       this.config.maxFishCount
     )
 
+    // Enable instance colors for individual brightness variations
+    this.instancedMesh.instanceColor = new THREE.InstancedBufferAttribute(
+      new Float32Array(this.config.maxFishCount * 3), 3
+    )
+
     this.instancedMesh.frustumCulled = this.config.enableFrustumCulling
     this.scene.add(this.instancedMesh)
     this.modelLoaded = true
-    console.log('Using fallback fish geometry - Blue cones')
+    console.log('Using fallback fish geometry - Blue cones with instance colors')
   }
 
   /**
@@ -230,7 +262,7 @@ export class FishRenderer {
     }
 
     // Limit to max fish count for performance
-    const fishToRender = visibleFish.slice(0, Math.min(this.config.maxFishCount, 500))
+    const fishToRender = visibleFish.slice(0, this.config.maxFishCount)
     this.instancedMesh.count = fishToRender.length
 
     // Batch update matrices for better performance
@@ -262,11 +294,25 @@ export class FishRenderer {
       // Set instance matrix
       if (this.instancedMesh) {
         this.instancedMesh.setMatrixAt(index, this.matrix)
+        
+        // Apply individual brightness variation
+        const brightness = fishInstance.appearance.brightnessVariation
+        const colorVariation = fishInstance.appearance.colorVariation
+        
+        // Start with base sardine color and apply variations
+        this.tempColor.setHex(0xE8F4FD) // Brighter base sardine color
+        this.tempColor.multiplyScalar(brightness * colorVariation)
+        
+        // Set instance color
+        this.instancedMesh.setColorAt(index, this.tempColor)
       }
     })
 
     // Mark instances as needing update
     this.instancedMesh.instanceMatrix.needsUpdate = true
+    if (this.instancedMesh.instanceColor) {
+      this.instancedMesh.instanceColor.needsUpdate = true
+    }
     this.visibleFishCount = fishToRender.length
   }
 
@@ -293,11 +339,39 @@ export class FishRenderer {
   }
 
   /**
-   * Update material properties
+   * Update material properties for enhanced metallic appearance
    */
   public updateMaterial(properties: Partial<THREE.Material>): void {
     if (this.material) {
       Object.assign(this.material, properties)
+    }
+  }
+
+  /**
+   * Enable enhanced metallic sardine appearance
+   */
+  public enableMetallicAppearance(): void {
+    if (this.material instanceof THREE.MeshStandardMaterial) {
+      this.material.metalness = 0.9 // Very high metalness for maximum shine
+      this.material.roughness = 0.7 // Keep natural roughness for fish skin texture
+      this.material.envMapIntensity = 1.0 // Maximum reflection
+      this.material.color.setHex(0xF0F8FF) // Ultra bright sardine color
+      this.material.emissiveIntensity = 0.18 // Maximum glow
+      console.log('Maximum sardine shine enabled with natural texture')
+    }
+  }
+
+  /**
+   * Disable metallic appearance (return to natural look)
+   */
+  public disableMetallicAppearance(): void {
+    if (this.material instanceof THREE.MeshStandardMaterial) {
+      this.material.metalness = 0.2
+      this.material.roughness = 0.8 // High roughness for matte natural look
+      this.material.envMapIntensity = 0.3
+      this.material.color.setHex(0xB8C6DB) // Dimmer natural color
+      this.material.emissiveIntensity = 0.05 // Reduced glow
+      console.log('Natural sardine appearance restored')
     }
   }
 

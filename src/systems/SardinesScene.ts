@@ -96,25 +96,32 @@ export class SardinesScene {
   }
 
   private setupLighting(): void {
-    // Natural underwater lighting
-    const ambientLight = new THREE.AmbientLight(0x4A90E2, 0.5) // Moderate blue ambient
+    // Enhanced underwater lighting for realistic sardine visibility
+    const ambientLight = new THREE.AmbientLight(0x6BA3D6, 0.6) // Brighter blue-white ambient
     this.scene.add(ambientLight)
     
-    // Main directional light (sunlight through water)
-    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.8)
+    // Main directional light (sunlight through water) - ENHANCED for maximum brightness
+    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1.2) // Significantly increased intensity for brighter sardines
     directionalLight.position.set(50, 200, 50)
     directionalLight.castShadow = false // Disable shadows for performance
     this.scene.add(directionalLight)
     
-    // Secondary fill light for better texture visibility
-    const fillLight = new THREE.DirectionalLight(0x87CEEB, 0.4) // Blue fill light
+    // Secondary fill light for better metallic highlights
+    const fillLight = new THREE.DirectionalLight(0x87CEEB, 0.5) // Enhanced blue fill light
     fillLight.position.set(-50, 100, -50)
     this.scene.add(fillLight)
+    
+    // Additional light to enhance sardine metallic shine - ENHANCED for maximum metallic impact
+    const shineLight = new THREE.DirectionalLight(0xE6F3FF, 0.7) // Increased intensity for dramatic metallic highlights
+    shineLight.position.set(100, 0, 0) // Side lighting for metallic highlights
+    this.scene.add(shineLight)
     
     // Subtle bottom light for floor visibility
     const bottomLight = new THREE.DirectionalLight(0xE6F3FF, 0.3)
     bottomLight.position.set(0, 150, 0)
     this.scene.add(bottomLight)
+    
+    console.log('Enhanced lighting setup for realistic sardine appearance')
   }
 
   private initializeFlockManager(): void {
@@ -144,6 +151,7 @@ export class SardinesScene {
       // Flocking parameters
       neighborRadius: 25.0,         // Detection radius for neighbors
       separationRadius: 8.0,        // Minimum distance to maintain
+      collisionRadius: 4.0,         // Emergency collision avoidance radius
       cohesionStrength: 0.4,        // Attraction to group center
       separationStrength: 0.8,      // Avoidance of crowding
       alignmentStrength: 0.6,       // Velocity matching strength
@@ -153,8 +161,11 @@ export class SardinesScene {
       socialWeight: 0.4             // Weight of flocking behavior
     }
     
+    // Get initial fish count from store
+    const initialFishCount = useSimulationStore.getState().parameters.rendering.fishCount
+    
     const config: FlockConfig = {
-      fishCount: 200, // Reduced fish count for better performance
+      fishCount: initialFishCount, // Use fish count from UI store
       bounds,
       behavior: defaultBehavior,
       spatialPartitioning: true,
@@ -167,7 +178,7 @@ export class SardinesScene {
   private initializeFishRenderer(): void {
     const config: FishRenderConfig = {
       modelPath: '/assets/fish-model/scene.gltf',
-      maxFishCount: 500, // Reduced max fish count for performance
+      maxFishCount: 2500, // Increased max fish count for larger schools
       scale: 3.0, // Even bigger scale for visibility
       enableShadows: false, // Disable shadows to avoid shader issues
       enableFrustumCulling: true, // Enable frustum culling for performance
@@ -325,6 +336,12 @@ export class SardinesScene {
     if (this.fishRenderer) {
       // Update rendering parameters
       if (parameters.rendering) {
+        if (parameters.rendering.fishCount !== undefined) {
+          // Update fish count
+          this.flockManager?.setFishCount(parameters.rendering.fishCount)
+          console.log('Updated fish count to:', parameters.rendering.fishCount)
+        }
+        
         if (parameters.rendering.modelScale !== undefined) {
           // Update fish scale
           this.fishRenderer.updateMaterial({
@@ -519,6 +536,7 @@ export class SardinesScene {
           // Flocking parameters
           neighborRadius: state.parameters.behavior.neighborRadius,
           separationRadius: state.parameters.behavior.separationRadius,
+          collisionRadius: state.parameters.behavior.collisionRadius,
           cohesionStrength: state.parameters.behavior.cohesionStrength,
           separationStrength: state.parameters.behavior.separationStrength,
           alignmentStrength: state.parameters.behavior.alignmentStrength,
@@ -530,6 +548,11 @@ export class SardinesScene {
         
         // Update all fish with new behavior parameters
         this.flockManager.updateBehavior(fishBehavior)
+        
+        // Update fish count if changed
+        if (state.parameters.rendering.fishCount !== undefined) {
+          this.flockManager.setFishCount(state.parameters.rendering.fishCount)
+        }
       }
     })
   }

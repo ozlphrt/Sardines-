@@ -68,11 +68,16 @@ export interface FishPhysics {
  * Fish size characteristics affecting behavior
  */
 export interface FishSize {
-  scaleFactor: number      // Overall size multiplier (0.6 - 1.4)
+  scaleFactor: number      // Overall size multiplier (0.4 - 1.6)
   bodyLength: number       // Actual body length in world units
-  speedMultiplier: number  // Speed boost for smaller fish (0.7 - 1.3)
-  agilityMultiplier: number // Agility boost for smaller fish (0.7 - 1.3)
-  turnRateMultiplier: number // Turn rate boost for smaller fish (0.7 - 1.3)
+  speedMultiplier: number  // Speed boost for smaller fish (0.6 - 1.4)
+  agilityMultiplier: number // Agility boost for smaller fish (0.6 - 1.4)
+  turnRateMultiplier: number // Turn rate boost for smaller fish (0.6 - 1.4)
+}
+
+export interface FishAppearance {
+  brightnessVariation: number // Individual brightness multiplier (0.8-1.2)
+  colorVariation: number      // Subtle color variation (0.95-1.05)
 }
 
 /**
@@ -99,6 +104,7 @@ export interface FishBehavior {
   // Flocking parameters
   neighborRadius: number          // Detection radius for neighbors
   separationRadius: number        // Minimum distance to maintain
+  collisionRadius: number         // Emergency collision avoidance radius (smaller than separation)
   cohesionStrength: number        // Attraction to group center (0-1)
   separationStrength: number      // Avoidance of crowding (0-1)
   alignmentStrength: number       // Velocity matching strength (0-1)
@@ -116,6 +122,7 @@ export class Fish {
   public behavior: FishBehavior
   public movement: CoreMovement
   public size: FishSize
+  public appearance: FishAppearance
   private lastUpdateTime: number = 0
 
   constructor(position: THREE.Vector3, behavior: FishBehavior) {
@@ -124,6 +131,9 @@ export class Fish {
     
     // Initialize size characteristics with realistic distribution
     this.size = this.generateSizeCharacteristics(behavior.bodyLength)
+    
+    // Initialize appearance characteristics for visual variety
+    this.appearance = this.generateAppearanceCharacteristics()
     
     // Initialize physics with size-based scaling
     this.physics = {
@@ -304,63 +314,216 @@ export class Fish {
    */
   private updateBoundaryAvoidance(_deltaTime: number, bounds: THREE.Box3): void {
     const position = this.physics.position
-    const avoidanceDistance = this.size.bodyLength * 5 // Start avoiding 5 body lengths from edge
-    const urgentDistance = this.size.bodyLength * 2   // Urgent avoidance 2 body lengths from edge
+    const velocity = this.physics.velocity
+    
+    // Enhanced predictive boundary avoidance with multiple zones
+    // Horizontal boundaries (X, Z) - larger distances for wall avoidance
+    const horizontalEarlyWarning = this.size.bodyLength * 12  // Start gentle turning 12 body lengths away
+    const horizontalAvoidance = this.size.bodyLength * 8      // Moderate avoidance 8 body lengths from edge
+    const horizontalUrgent = this.size.bodyLength * 3        // Urgent avoidance 3 body lengths from edge
+    
+    // Vertical boundaries (Y - depth) - smaller distances to allow natural depth distribution
+    const verticalEarlyWarning = this.size.bodyLength * 6    // Reduced for depth - 6 body lengths
+    const verticalAvoidance = this.size.bodyLength * 4       // Reduced for depth - 4 body lengths  
+    const verticalUrgent = this.size.bodyLength * 2          // Reduced for depth - 2 body lengths
     
     let avoidanceForce = new THREE.Vector3()
     let urgentAvoidance = false
+    let earlyWarning = false
     
     // Check each boundary and calculate avoidance force
     
-    // X boundaries (left/right walls)
-    if (position.x - bounds.min.x < avoidanceDistance) {
-      const distance = position.x - bounds.min.x
-      const strength = Math.max(0, (avoidanceDistance - distance) / avoidanceDistance)
-      avoidanceForce.x += strength * 2.0 // Push away from left wall
-      if (distance < urgentDistance) urgentAvoidance = true
-    }
-    if (bounds.max.x - position.x < avoidanceDistance) {
-      const distance = bounds.max.x - position.x
-      const strength = Math.max(0, (avoidanceDistance - distance) / avoidanceDistance)
-      avoidanceForce.x -= strength * 2.0 // Push away from right wall
-      if (distance < urgentDistance) urgentAvoidance = true
+    // X boundaries (left/right walls) - Enhanced predictive avoidance with collision angle detection
+    const leftDistance = position.x - bounds.min.x
+    const rightDistance = bounds.max.x - position.x
+    
+    // Predictive component: consider where fish will be based on current velocity
+    const futureX = position.x + velocity.x * 2.0 // Look ahead 2 seconds
+    const leftFutureDistance = futureX - bounds.min.x
+    const rightFutureDistance = bounds.max.x - futureX
+    
+    // Collision angle detection - check if fish is heading toward wall
+    const isHeadingTowardLeftWall = velocity.x < -0.1 // Moving left with significant speed
+    const isHeadingTowardRightWall = velocity.x > 0.1 // Moving right with significant speed
+    
+    // Left wall avoidance
+    if (leftDistance < horizontalEarlyWarning || leftFutureDistance < horizontalEarlyWarning) {
+      const currentDist = Math.min(leftDistance, leftFutureDistance)
+      let strength = 0
+      
+      // Calculate collision angle multiplier - stronger avoidance when heading directly toward wall
+      const collisionAngleMultiplier = isHeadingTowardLeftWall ? 2.0 : 1.0
+      
+      if (currentDist < horizontalUrgent) {
+        strength = 3.0 * collisionAngleMultiplier // Much stronger when heading toward wall
+        urgentAvoidance = true
+      } else if (currentDist < horizontalAvoidance) {
+        strength = Math.max(0, (horizontalAvoidance - currentDist) / horizontalAvoidance) * 2.0 * collisionAngleMultiplier
+      } else {
+        // Early warning - more aggressive when heading toward wall
+        const baseStrength = Math.max(0, (horizontalEarlyWarning - currentDist) / horizontalEarlyWarning) * 0.5
+        strength = baseStrength * collisionAngleMultiplier
+        earlyWarning = true
+      }
+      
+      avoidanceForce.x += strength
     }
     
-    // Y boundaries (top/bottom)
-    if (position.y - bounds.min.y < avoidanceDistance) {
-      const distance = position.y - bounds.min.y
-      const strength = Math.max(0, (avoidanceDistance - distance) / avoidanceDistance)
-      avoidanceForce.y += strength * 2.0 // Push away from bottom
-      if (distance < urgentDistance) urgentAvoidance = true
-    }
-    if (bounds.max.y - position.y < avoidanceDistance) {
-      const distance = bounds.max.y - position.y
-      const strength = Math.max(0, (avoidanceDistance - distance) / avoidanceDistance)
-      avoidanceForce.y -= strength * 2.0 // Push away from top
-      if (distance < urgentDistance) urgentAvoidance = true
+    // Right wall avoidance
+    if (rightDistance < horizontalEarlyWarning || rightFutureDistance < horizontalEarlyWarning) {
+      const currentDist = Math.min(rightDistance, rightFutureDistance)
+      let strength = 0
+      
+      // Calculate collision angle multiplier - stronger avoidance when heading directly toward wall
+      const collisionAngleMultiplier = isHeadingTowardRightWall ? 2.0 : 1.0
+      
+      if (currentDist < horizontalUrgent) {
+        strength = 3.0 * collisionAngleMultiplier // Much stronger when heading toward wall
+        urgentAvoidance = true
+      } else if (currentDist < horizontalAvoidance) {
+        strength = Math.max(0, (horizontalAvoidance - currentDist) / horizontalAvoidance) * 2.0 * collisionAngleMultiplier
+      } else {
+        // Early warning - more aggressive when heading toward wall
+        const baseStrength = Math.max(0, (horizontalEarlyWarning - currentDist) / horizontalEarlyWarning) * 0.5
+        strength = baseStrength * collisionAngleMultiplier
+        earlyWarning = true
+      }
+      
+      avoidanceForce.x -= strength
     }
     
-    // Z boundaries (front/back walls)
-    if (position.z - bounds.min.z < avoidanceDistance) {
-      const distance = position.z - bounds.min.z
-      const strength = Math.max(0, (avoidanceDistance - distance) / avoidanceDistance)
-      avoidanceForce.z += strength * 2.0 // Push away from back wall
-      if (distance < urgentDistance) urgentAvoidance = true
+    // Y boundaries (top/bottom) - Enhanced predictive avoidance with collision angle detection
+    const bottomDistance = position.y - bounds.min.y
+    const topDistance = bounds.max.y - position.y
+    const futureY = position.y + velocity.y * 2.0
+    const bottomFutureDistance = futureY - bounds.min.y
+    const topFutureDistance = bounds.max.y - futureY
+    
+    // Collision angle detection for vertical boundaries
+    const isHeadingTowardBottom = velocity.y < -0.1 // Moving down with significant speed
+    const isHeadingTowardTop = velocity.y > 0.1 // Moving up with significant speed
+    
+    // Bottom boundary avoidance (using reduced vertical distances)
+    if (bottomDistance < verticalEarlyWarning || bottomFutureDistance < verticalEarlyWarning) {
+      const currentDist = Math.min(bottomDistance, bottomFutureDistance)
+      let strength = 0
+      
+      // Calculate collision angle multiplier for vertical boundaries
+      const collisionAngleMultiplier = isHeadingTowardBottom ? 1.8 : 1.0 // Less aggressive than horizontal
+      
+      if (currentDist < verticalUrgent) {
+        strength = 2.0 * collisionAngleMultiplier // Stronger when heading directly down
+        urgentAvoidance = true
+      } else if (currentDist < verticalAvoidance) {
+        strength = Math.max(0, (verticalAvoidance - currentDist) / verticalAvoidance) * 1.5 * collisionAngleMultiplier
+      } else {
+        const baseStrength = Math.max(0, (verticalEarlyWarning - currentDist) / verticalEarlyWarning) * 0.3
+        strength = baseStrength * collisionAngleMultiplier
+        earlyWarning = true
+      }
+      
+      avoidanceForce.y += strength
     }
-    if (bounds.max.z - position.z < avoidanceDistance) {
-      const distance = bounds.max.z - position.z
-      const strength = Math.max(0, (avoidanceDistance - distance) / avoidanceDistance)
-      avoidanceForce.z -= strength * 2.0 // Push away from front wall
-      if (distance < urgentDistance) urgentAvoidance = true
+    
+    // Top boundary avoidance (using reduced vertical distances)
+    if (topDistance < verticalEarlyWarning || topFutureDistance < verticalEarlyWarning) {
+      const currentDist = Math.min(topDistance, topFutureDistance)
+      let strength = 0
+      
+      // Calculate collision angle multiplier for vertical boundaries
+      const collisionAngleMultiplier = isHeadingTowardTop ? 1.8 : 1.0 // Less aggressive than horizontal
+      
+      if (currentDist < verticalUrgent) {
+        strength = 2.0 * collisionAngleMultiplier // Stronger when heading directly up
+        urgentAvoidance = true
+      } else if (currentDist < verticalAvoidance) {
+        strength = Math.max(0, (verticalAvoidance - currentDist) / verticalAvoidance) * 1.5 * collisionAngleMultiplier
+      } else {
+        const baseStrength = Math.max(0, (verticalEarlyWarning - currentDist) / verticalEarlyWarning) * 0.3
+        strength = baseStrength * collisionAngleMultiplier
+        earlyWarning = true
+      }
+      
+      avoidanceForce.y -= strength
+    }
+    
+    // Z boundaries (front/back walls) - Enhanced predictive avoidance with collision angle detection
+    const backDistance = position.z - bounds.min.z
+    const frontDistance = bounds.max.z - position.z
+    const futureZ = position.z + velocity.z * 2.0
+    const backFutureDistance = futureZ - bounds.min.z
+    const frontFutureDistance = bounds.max.z - futureZ
+    
+    // Collision angle detection for Z boundaries
+    const isHeadingTowardBack = velocity.z < -0.1 // Moving backward with significant speed
+    const isHeadingTowardFront = velocity.z > 0.1 // Moving forward with significant speed
+    
+    // Back boundary avoidance
+    if (backDistance < horizontalEarlyWarning || backFutureDistance < horizontalEarlyWarning) {
+      const currentDist = Math.min(backDistance, backFutureDistance)
+      let strength = 0
+      
+      // Calculate collision angle multiplier - stronger avoidance when heading directly toward wall
+      const collisionAngleMultiplier = isHeadingTowardBack ? 2.0 : 1.0
+      
+      if (currentDist < horizontalUrgent) {
+        strength = 3.0 * collisionAngleMultiplier
+        urgentAvoidance = true
+      } else if (currentDist < horizontalAvoidance) {
+        strength = Math.max(0, (horizontalAvoidance - currentDist) / horizontalAvoidance) * 2.0 * collisionAngleMultiplier
+      } else {
+        const baseStrength = Math.max(0, (horizontalEarlyWarning - currentDist) / horizontalEarlyWarning) * 0.5
+        strength = baseStrength * collisionAngleMultiplier
+        earlyWarning = true
+      }
+      
+      avoidanceForce.z += strength
+    }
+    
+    // Front boundary avoidance
+    if (frontDistance < horizontalEarlyWarning || frontFutureDistance < horizontalEarlyWarning) {
+      const currentDist = Math.min(frontDistance, frontFutureDistance)
+      let strength = 0
+      
+      // Calculate collision angle multiplier - stronger avoidance when heading directly toward wall
+      const collisionAngleMultiplier = isHeadingTowardFront ? 2.0 : 1.0
+      
+      if (currentDist < horizontalUrgent) {
+        strength = 3.0 * collisionAngleMultiplier
+        urgentAvoidance = true
+      } else if (currentDist < horizontalAvoidance) {
+        strength = Math.max(0, (horizontalAvoidance - currentDist) / horizontalAvoidance) * 2.0 * collisionAngleMultiplier
+      } else {
+        const baseStrength = Math.max(0, (horizontalEarlyWarning - currentDist) / horizontalEarlyWarning) * 0.5
+        strength = baseStrength * collisionAngleMultiplier
+        earlyWarning = true
+      }
+      
+      avoidanceForce.z -= strength
     }
     
     // Apply avoidance force if needed
     if (avoidanceForce.length() > 0) {
       avoidanceForce.normalize()
       
-      // Blend avoidance direction with current heading
+      // Blend avoidance direction with current heading based on warning level
       const currentHeading = this.movement.direction.currentHeading.clone()
-      const avoidanceWeight = urgentAvoidance ? 0.8 : 0.3 // Stronger influence when urgent
+      let avoidanceWeight = 0.1 // Default gentle influence
+      let turnRateMultiplier = 1.0
+      
+      if (urgentAvoidance) {
+        // Emergency avoidance - strong influence
+        avoidanceWeight = 0.9
+        turnRateMultiplier = 2.0
+      } else if (earlyWarning) {
+        // Early warning - gentle but noticeable influence
+        avoidanceWeight = 0.2
+        turnRateMultiplier = 1.2
+      } else {
+        // Normal avoidance - moderate influence
+        avoidanceWeight = 0.5
+        turnRateMultiplier = 1.5
+      }
       
       // Create new target heading that blends current direction with avoidance
       const newHeading = currentHeading.multiplyScalar(1 - avoidanceWeight)
@@ -371,10 +534,8 @@ export class Fish {
       this.movement.direction.targetHeading.copy(newHeading)
       this.movement.direction.isChangingDirection = true
       
-      // Increase turn rate for urgent avoidance
-      if (urgentAvoidance) {
-        this.movement.direction.turnRate = this.behavior.maxTurnRate * this.size.turnRateMultiplier * 1.5
-      }
+      // Adjust turn rate based on urgency
+      this.movement.direction.turnRate = this.behavior.maxTurnRate * this.size.turnRateMultiplier * turnRateMultiplier
     }
     
     // Hard boundary enforcement (prevent fish from going outside)
@@ -428,7 +589,7 @@ export class Fish {
   }
 
   /**
-   * F2: SEPARATION - Avoidance of crowding
+   * F2: SEPARATION - Avoidance of crowding with collision urgency
    */
   private calculateSeparation(neighbors: Fish[]): THREE.Vector3 {
     const separationForce = new THREE.Vector3()
@@ -442,9 +603,21 @@ export class Fish {
         const awayDirection = this.physics.position.clone().sub(neighbor.physics.position)
         awayDirection.normalize()
         
-        // Stronger force when closer
-        const strength = (this.behavior.separationRadius - distance) / this.behavior.separationRadius
-        awayDirection.multiplyScalar(strength)
+        // Check for collision urgency - emergency avoidance for very close fish
+        let strength: number
+        if (distance < this.behavior.collisionRadius) {
+          // COLLISION URGENCY: Much stronger force for imminent collision
+          const collisionUrgency = (this.behavior.collisionRadius - distance) / this.behavior.collisionRadius
+          strength = 1.0 + (collisionUrgency * 3.0) // 1x to 4x strength for collision avoidance
+          
+          // Emergency speed boost for collision avoidance
+          const emergencySpeedBoost = 1.5 + collisionUrgency // 1.5x to 2.5x speed
+          awayDirection.multiplyScalar(strength * emergencySpeedBoost)
+        } else {
+          // Normal separation behavior
+          strength = (this.behavior.separationRadius - distance) / this.behavior.separationRadius
+          awayDirection.multiplyScalar(strength)
+        }
         
         separationForce.add(awayDirection)
         separationCount++
@@ -568,18 +741,18 @@ export class Fish {
   private generateSizeCharacteristics(baseBodyLength: number): FishSize {
     // Generate size factor using normal distribution (bell curve)
     // Most fish will be average size, few will be very small or very large
-    const sizeVariation = this.generateNormalRandom(0, 0.2) // Mean=0, StdDev=0.2
-    const scaleFactor = Math.max(0.6, Math.min(1.4, 1.0 + sizeVariation)) // Clamp to 0.6-1.4
+    const sizeVariation = this.generateNormalRandom(0, 0.3) // Mean=0, StdDev=0.3 for wider variance
+    const scaleFactor = Math.max(0.4, Math.min(1.6, 1.0 + sizeVariation)) // Clamp to 0.4-1.6 (40% variation)
     
     // Calculate actual body length
     const actualBodyLength = baseBodyLength * scaleFactor
     
-    // Inverse relationship: smaller fish are faster and more agile
-    // Size factor 0.6 -> Speed/Agility multiplier ~1.3 (30% faster)
-    // Size factor 1.4 -> Speed/Agility multiplier ~0.7 (30% slower)
-    const speedMultiplier = Math.max(0.7, Math.min(1.3, 2.0 - scaleFactor))
-    const agilityMultiplier = Math.max(0.7, Math.min(1.3, 2.0 - scaleFactor))
-    const turnRateMultiplier = Math.max(0.7, Math.min(1.3, 2.0 - scaleFactor))
+    // Inverse relationship: smaller fish are faster and more agile (expanded range)
+    // Size factor 0.4 -> Speed/Agility multiplier ~1.4 (40% faster)
+    // Size factor 1.6 -> Speed/Agility multiplier ~0.6 (40% slower)
+    const speedMultiplier = Math.max(0.6, Math.min(1.4, 2.0 - scaleFactor))
+    const agilityMultiplier = Math.max(0.6, Math.min(1.4, 2.0 - scaleFactor))
+    const turnRateMultiplier = Math.max(0.6, Math.min(1.4, 2.0 - scaleFactor))
     
     return {
       scaleFactor,
@@ -587,6 +760,25 @@ export class Fish {
       speedMultiplier,
       agilityMultiplier,
       turnRateMultiplier
+    }
+  }
+
+  /**
+   * Generate appearance characteristics for visual variety
+   */
+  private generateAppearanceCharacteristics(): FishAppearance {
+    // Generate brightness variation using normal distribution
+    // Most fish will have normal brightness, some will be brighter/darker
+    const brightnessVariation = this.generateNormalRandom(0, 0.1) // Mean=0, StdDev=0.1
+    const brightnessMultiplier = Math.max(0.8, Math.min(1.2, 1.0 + brightnessVariation)) // Clamp to 0.8-1.2
+    
+    // Generate subtle color variation
+    const colorVariation = this.generateNormalRandom(0, 0.02) // Mean=0, StdDev=0.02
+    const colorMultiplier = Math.max(0.95, Math.min(1.05, 1.0 + colorVariation)) // Clamp to 0.95-1.05
+    
+    return {
+      brightnessVariation: brightnessMultiplier,
+      colorVariation: colorMultiplier
     }
   }
 

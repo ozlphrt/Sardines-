@@ -55,6 +55,15 @@ const Sidebar: React.FC = () => {
         onChange={(value) => actions.updateParameter('behavior', 'separationRadius', value)}
         description="Minimum distance to maintain from neighbors"
       />
+      <HoverDrag
+        label="Collision Radius"
+        value={parameters.behavior.collisionRadius}
+        min={1}
+        max={10}
+        step={0.5}
+        onChange={(value) => actions.updateParameter('behavior', 'collisionRadius', value)}
+        description="Emergency collision avoidance radius (smaller than separation)"
+      />
       
       {/* Force Balancing */}
       <HoverDrag
@@ -167,8 +176,8 @@ const Sidebar: React.FC = () => {
         label="Fish Count"
         value={parameters.rendering.fishCount}
         min={50}
-        max={500}
-        step={25}
+        max={2500}
+        step={50}
         onChange={(value) => actions.updateParameter('rendering', 'fishCount', value)}
         description="Number of fish in simulation"
       />

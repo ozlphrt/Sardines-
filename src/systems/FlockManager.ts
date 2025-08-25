@@ -170,6 +170,28 @@ export class FlockManager {
   }
 
   /**
+   * Set exact fish count (add or remove as needed)
+   */
+  public setFishCount(targetCount: number): void {
+    const currentCount = this.fish.length
+    
+    if (targetCount > currentCount) {
+      // Add fish
+      const addCount = targetCount - currentCount
+      this.addFish(addCount)
+      console.log(`Added ${addCount} fish. Total: ${this.fish.length}`)
+    } else if (targetCount < currentCount) {
+      // Remove fish
+      const removeCount = currentCount - targetCount
+      this.removeFish(removeCount)
+      console.log(`Removed ${removeCount} fish. Total: ${this.fish.length}`)
+    }
+    
+    // Update config to reflect new count
+    this.config.fishCount = this.fish.length
+  }
+
+  /**
    * Clear all fish
    */
   public clearFish(): void {

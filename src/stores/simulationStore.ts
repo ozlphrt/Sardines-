@@ -9,6 +9,7 @@ export interface BehaviorParams {
   alignmentStrength: number
   neighborRadius: number
   separationRadius: number
+  collisionRadius: number
   
   // Force balancing
   individualWeight: number
@@ -110,6 +111,7 @@ const defaultBehavior: BehaviorParams = {
   alignmentStrength: 0.6,
   neighborRadius: 25.0,
   separationRadius: 8.0,
+  collisionRadius: 4.0, // Half of separation radius for emergency avoidance
   
   // Force balancing
   individualWeight: 0.6,
@@ -140,7 +142,7 @@ const defaultPhysics: PhysicsParams = {
 }
 
 const defaultRendering: RenderingParams = {
-  fishCount: 500,
+  fishCount: 1000,
   modelScale: 1,
   lightingIntensity: 1,
 }
@@ -250,7 +252,8 @@ export const useSimulationStore = create<SimulationStore>()(
                 alignmentStrength: 0.9,
                 socialWeight: 0.7,
                 individualWeight: 0.3,
-                separationRadius: 6.0
+                separationRadius: 6.0,
+                collisionRadius: 2.5 // Smaller for tight formation
               },
               physics: { ...defaultPhysics, maxSpeed: 50 },
               rendering: { ...defaultRendering, fishCount: 250 },
@@ -264,7 +267,8 @@ export const useSimulationStore = create<SimulationStore>()(
                 socialWeight: 0.2,
                 individualWeight: 0.8,
                 neighborRadius: 15.0,
-                separationRadius: 12.0
+                separationRadius: 12.0,
+                collisionRadius: 6.0 // Larger for scattered behavior
               },
               physics: { ...defaultPhysics, maxSpeed: 80 },
               rendering: { ...defaultRendering, fishCount: 150 },
