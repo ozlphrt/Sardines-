@@ -13,7 +13,7 @@ export interface SeaFloorConfig {
 export class SeaFloorModel {
   private scene: THREE.Scene
   private config: SeaFloorConfig
-  private model: THREE.Group | null = null
+  private model: THREE.Object3D | null = null
   private loader: GLTFLoader
   private isLoading: boolean = false
   private loadError: string | null = null
@@ -35,33 +35,49 @@ export class SeaFloorModel {
     try {
       console.log('🌊 Loading external sea floor GLTF model...')
       
-      const gltf = await this.loader.loadAsync('/Sardines-/assets/models/underwater_terrain/scene.gltf')
-      
-      this.model = gltf.scene
+      // Try to load the GLTF model first
+      try {
+        const gltf = await this.loader.loadAsync('models/underwater_terrain/scene.gltf')
+        this.model = gltf.scene
+        console.log('✅ GLTF sea floor model loaded successfully!')
+      } catch (gltfError) {
+        console.warn('⚠️ GLTF model failed to load, creating fallback plane:', gltfError)
+        
+        // Create a fallback plane geometry
+        const geometry = new THREE.PlaneGeometry(200, 200, 20, 20)
+        const material = new THREE.MeshLambertMaterial({ 
+          color: 0x8B4513, // Sandy brown color
+          side: THREE.DoubleSide 
+        })
+        this.model = new THREE.Mesh(geometry, material)
+        console.log('✅ Fallback sea floor plane created!')
+      }
       
       // Apply configuration
-      this.model.scale.setScalar(this.config.scale)
-      this.model.position.copy(this.config.position)
-      this.model.rotation.copy(this.config.rotation)
-      
-      // Configure shadows
-      this.model.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.receiveShadow = this.config.receiveShadows
-          child.castShadow = this.config.castShadows
-        }
-      })
-      
-      // Add to scene
-      this.scene.add(this.model)
-      
-      console.log('✅ Sea floor model loaded successfully!')
-      console.log('📊 Model info:', {
-        children: this.model.children.length,
-        scale: this.config.scale,
-        position: this.config.position,
-        rotation: this.config.rotation
-      })
+      if (this.model) {
+        this.model.scale.setScalar(this.config.scale)
+        this.model.position.copy(this.config.position)
+        this.model.rotation.copy(this.config.rotation)
+        
+        // Configure shadows
+        this.model.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.receiveShadow = this.config.receiveShadows
+            child.castShadow = this.config.castShadows
+          }
+        })
+        
+        // Add to scene
+        this.scene.add(this.model)
+        
+        console.log('✅ Sea floor model loaded successfully!')
+        console.log('📊 Model info:', {
+          children: this.model.children.length,
+          scale: this.config.scale,
+          position: this.config.position,
+          rotation: this.config.rotation
+        })
+      }
       console.log('🌊 Sea floor scaled to:', this.config.scale, 'x (ocean bottom coverage)')
       
     } catch (error) {
@@ -89,7 +105,7 @@ export class SeaFloorModel {
     }
   }
 
-  public getModel(): THREE.Group | null {
+  public getModel(): THREE.Object3D | null {
     return this.model
   }
 
