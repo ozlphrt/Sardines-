@@ -35,7 +35,7 @@ export class SeaFloorModel {
     try {
       console.log('🌊 Loading external sea floor GLTF model...')
       
-      const gltf = await this.loader.loadAsync('/models/underwater_terrain/scene.gltf')
+      const gltf = await this.loader.loadAsync('/Sardines-/models/underwater_terrain/scene.gltf')
       
       this.model = gltf.scene
       
