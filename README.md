@@ -4,7 +4,7 @@ An interactive 3D simulation of sardine flocking behavior using Three.js and Rea
 
 ## 🌊 Live Demo
 
-**[Play the Simulation →](https://your-username.github.io/sardines-simulation/)**
+**[Play the Simulation →](https://ozlphrt.github.io/Sardines-/)**
 
 *No download required - runs directly in your browser!*
 
@@ -41,7 +41,7 @@ Simply visit the live demo link above - no installation required!
 ### Option 2: Local Development
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/sardines-simulation.git
+git clone https://github.com/ozlphrt/Sardines-.git
 cd sardines-simulation
 
 # Install dependencies
