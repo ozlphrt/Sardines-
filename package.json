@@ -16,7 +16,7 @@
     "test:e2e": "playwright test",
     "test:a11y": "playwright test --grep \"accessibility\"",
     "check": "npm run lint && npm run type-check && npm run test",
-    "deploy": "gh-pages -d dist"
+    "deploy": "npm run build && xcopy public\\models dist\\models\\ /E /I /Y && gh-pages -d dist"
   },
   "dependencies": {
     "react": "^18.2.0",
