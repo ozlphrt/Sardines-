@@ -11,9 +11,7 @@ export class UnderwaterEnvironment {
 
 
 
-  private _createEnvironment(): void {
-    // All environment objects removed - clean underwater space
-  }
+  // Environment creation removed
 
 
 
