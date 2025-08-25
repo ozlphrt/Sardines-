@@ -15,7 +15,8 @@
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
     "test:a11y": "playwright test --grep \"accessibility\"",
-    "check": "npm run lint && npm run type-check && npm run test"
+    "check": "npm run lint && npm run type-check && npm run test",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -42,6 +43,7 @@
     "vitest": "^0.34.6",
     "@vitest/ui": "^0.34.6",
     "@playwright/test": "^1.40.0",
-    "jsdom": "^22.1.0"
+    "jsdom": "^22.1.0",
+    "gh-pages": "^6.1.0"
   }
 }
