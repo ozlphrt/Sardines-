@@ -45,6 +45,31 @@ export interface RenderingParams {
   lightingIntensity: number
 }
 
+export interface WallParams {
+  showWalls: boolean
+  showGridlines: boolean
+  wallOpacity: number
+  gridlineOpacity: number
+  gridSize: number
+  wallColor: string
+  gridlineColor: string
+  transparencyEnabled: boolean
+  transparencyDistance: number
+}
+
+export interface SeaFloorParams {
+  enabled: boolean
+  scale: number
+  positionX: number
+  positionY: number
+  positionZ: number
+  rotationX: number
+  rotationY: number
+  rotationZ: number
+  receiveShadows: boolean
+  castShadows: boolean
+}
+
 export interface PerformanceData {
   fps: number
   memoryUsage: number
@@ -80,6 +105,8 @@ export interface SimulationStore {
     behavior: BehaviorParams
     physics: PhysicsParams
     rendering: RenderingParams
+    walls: WallParams
+    seaFloor: SeaFloorParams
   }
   
   // Performance data
@@ -100,6 +127,11 @@ export interface SimulationStore {
     setActiveSection: (section: string) => void
     updatePerformance: (data: Partial<PerformanceData>) => void
     updateCamera: (camera: CameraState) => void
+    toggleWalls: () => void
+    toggleGridlines: () => void
+    updateWallParameter: (param: keyof WallParams, value: number | boolean | string) => void
+    toggleSeaFloor: () => void
+    updateSeaFloorParameter: (param: keyof SeaFloorParams, value: number | boolean) => void
   }
 }
 
@@ -147,6 +179,31 @@ const defaultRendering: RenderingParams = {
   lightingIntensity: 1,
 }
 
+const defaultWalls: WallParams = {
+  showWalls: false,
+  showGridlines: false,
+  wallOpacity: 0.05, // Almost invisible walls
+  gridlineOpacity: 1.0, // Maximum visibility gridlines
+  gridSize: 12, // Even denser grid
+  wallColor: '#4A90E2',
+  gridlineColor: '#00FFFF', // Bright cyan for maximum visibility
+  transparencyEnabled: true,
+  transparencyDistance: 150,
+}
+
+const defaultSeaFloor: SeaFloorParams = {
+  enabled: true,
+  scale: 10.0, // Large scale to cover entire ocean bottom
+  positionX: 0,
+  positionY: -20,
+  positionZ: 0,
+  rotationX: 0,
+  rotationY: 0,
+  rotationZ: 0,
+  receiveShadows: true,
+  castShadows: false,
+}
+
 const defaultPerformance: PerformanceData = {
   fps: 0,
   memoryUsage: 0,
@@ -183,6 +240,8 @@ export const useSimulationStore = create<SimulationStore>()(
         behavior: defaultBehavior,
         physics: defaultPhysics,
         rendering: defaultRendering,
+        walls: defaultWalls,
+        seaFloor: defaultSeaFloor,
       },
       
       performance: defaultPerformance,
@@ -217,6 +276,8 @@ export const useSimulationStore = create<SimulationStore>()(
               behavior: defaultBehavior,
               physics: defaultPhysics,
               rendering: defaultRendering,
+              walls: defaultWalls,
+              seaFloor: defaultSeaFloor,
             },
             ui: {
               ...state.ui,
@@ -346,7 +407,11 @@ export const useSimulationStore = create<SimulationStore>()(
           const selectedPreset = presets[preset as keyof typeof presets]
           if (selectedPreset) {
             set((state) => ({
-              parameters: selectedPreset,
+              parameters: {
+                ...selectedPreset,
+                walls: state.parameters.walls,
+                seaFloor: state.parameters.seaFloor,
+              },
               ui: {
                 ...state.ui,
                 selectedBehaviorPreset: preset,
@@ -364,11 +429,10 @@ export const useSimulationStore = create<SimulationStore>()(
           const cameraPresets = {
             default: { position: { x: 120, y: 40, z: 80 }, target: { x: 0, y: 0, z: 0 } },
             close: { position: { x: 0, y: 30, z: 100 }, target: { x: 0, y: 0, z: 0 } },
-            far: { position: { x: 0, y: 80, z: 300 }, target: { x: 0, y: 0, z: 0 } },
+            'dolly-cam': { position: { x: 0, y: 25, z: 60 }, target: { x: 0, y: 0, z: 0 } },
             action: { position: { x: 120, y: 40, z: 80 }, target: { x: 0, y: 0, z: 0 } },
-            follow: { position: { x: 0, y: 60, z: 150 }, target: { x: 0, y: 0, z: 0 } },
+            follow: { position: { x: 0, y: 40, z: 80 }, target: { x: 0, y: 0, z: 0 } },
             'single-fish': { position: { x: 0, y: 60, z: 150 }, target: { x: 0, y: 0, z: 0 } },
-            corner: { position: { x: 150, y: 100, z: 150 }, target: { x: 0, y: 0, z: 0 } },
           }
           
           const selectedCameraPreset = cameraPresets[preset as keyof typeof cameraPresets]
@@ -430,6 +494,66 @@ export const useSimulationStore = create<SimulationStore>()(
             },
           }))
         },
+        
+        toggleWalls: () => {
+          set((state) => ({
+            parameters: {
+              ...state.parameters,
+              walls: {
+                ...state.parameters.walls,
+                showWalls: !state.parameters.walls.showWalls,
+              },
+            },
+          }))
+        },
+        
+        toggleGridlines: () => {
+          set((state) => ({
+            parameters: {
+              ...state.parameters,
+              walls: {
+                ...state.parameters.walls,
+                showGridlines: !state.parameters.walls.showGridlines,
+              },
+            },
+          }))
+        },
+        
+        updateWallParameter: (param, value) => {
+          set((state) => ({
+            parameters: {
+              ...state.parameters,
+              walls: {
+                ...state.parameters.walls,
+                [param]: value,
+              },
+            },
+          }))
+        },
+        
+        toggleSeaFloor: () => {
+          set((state) => ({
+            parameters: {
+              ...state.parameters,
+              seaFloor: {
+                ...state.parameters.seaFloor,
+                enabled: !state.parameters.seaFloor.enabled,
+              },
+            },
+          }))
+        },
+        
+        updateSeaFloorParameter: (param, value) => {
+          set((state) => ({
+            parameters: {
+              ...state.parameters,
+              seaFloor: {
+                ...state.parameters.seaFloor,
+                [param]: value,
+              },
+            },
+          }))
+        },
       },
     }),
     {
@@ -440,13 +564,26 @@ export const useSimulationStore = create<SimulationStore>()(
       }),
       onRehydrateStorage: () => (state) => {
         // Migrate old store data to new Phase 1 + Flocking parameters
-        if (state && state.parameters && state.parameters.behavior) {
-          const behavior = state.parameters.behavior
+        if (state && state.parameters) {
+          // Migrate behavior parameters
+          if (state.parameters.behavior) {
+            const behavior = state.parameters.behavior
+            
+            // Migrate to new parameter structure if needed
+            if (behavior.neighborRadius === undefined) {
+              // Reset to default behavior for major structure change
+              state.parameters.behavior = defaultBehavior
+            }
+          }
           
-          // Migrate to new parameter structure if needed
-          if (behavior.neighborRadius === undefined) {
-            // Reset to default behavior for major structure change
-            state.parameters.behavior = defaultBehavior
+          // Migrate wall parameters - add if missing
+          if (!state.parameters.walls) {
+            state.parameters.walls = defaultWalls
+          }
+          
+          // Migrate sea floor parameters - add if missing
+          if (!state.parameters.seaFloor) {
+            state.parameters.seaFloor = defaultSeaFloor
           }
         }
       },

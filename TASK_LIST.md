@@ -348,9 +348,37 @@
 
 ---
 
+## 🏗️ Phase 7: Wall System & Environment Enhancement
+
+### T7.1: Wall System with Gridlines and Transparency
+- **Description**: Add visual wall boundaries with gridlines and smart transparency when between camera and fish
+- **Completion Criteria**:
+  - Visual walls defining the swimming area boundaries
+  - Gridline patterns on wall surfaces for spatial reference
+  - Smart transparency system that makes walls transparent when blocking fish view
+  - UI controls for wall visibility, gridlines, opacity, and transparency settings
+  - Performance maintained at 60fps with wall rendering
+- **Dependencies**: T1.4 (Edge Avoidance & Boundary Improvements)
+- **Priority**: P1
+- **Difficulty**: Medium
+- **Time Estimate**: 4 hours
+- **Risk Level**: Low
+- **Scope**: Wall visualization and transparency system
+- **Status**: [DONE] ✅
+
+**Implementation Details:**
+- Created `WallSystem.ts` with configurable wall rendering and transparency
+- Added wall parameters to simulation store with persistence
+- Integrated wall controls into sidebar UI with toggles and sliders
+- Implemented raycasting-based transparency when walls block camera-fish view
+- Walls render with gridlines at configurable spacing and opacity
+- Real-time parameter updates from UI to scene
+
+---
+
 ## 📊 Current Progress Summary
 
-### Completed Tasks: 12/18
+### Completed Tasks: 13/19
 ### In Progress: 1
 ### Blocked: 0
 ### Next 3 Tasks:

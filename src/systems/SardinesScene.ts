@@ -4,6 +4,8 @@ import { FlockManager, FlockConfig } from './FlockManager.js'
 import { FishBehavior } from './Fish.js'
 import { FishRenderer, FishRenderConfig } from './FishRenderer.js'
 import { UnderwaterEnvironment, UnderwaterConfig } from './UnderwaterEnvironment.js'
+// Wall system removed
+import { SeaFloorModel, SeaFloorConfig } from './SeaFloorModel.js'
 import { useSimulationStore } from '../stores/simulationStore.js'
 
 export interface SceneStats {
@@ -25,6 +27,8 @@ export class SardinesScene {
   private flockManager: FlockManager | null = null
   private fishRenderer: FishRenderer | null = null
   private underwaterEnvironment: UnderwaterEnvironment | null = null
+  // Wall system removed
+  private seaFloorModel: SeaFloorModel | null = null
   
   private isPaused: boolean = false
   private lastTime: number = 0
@@ -46,7 +50,7 @@ export class SardinesScene {
       0.1, // Near plane
       2000 // Far plane
     )
-    this.camera.position.set(0, -15, 40) // Lower camera position to see detailed ocean floor
+    this.camera.position.set(0, 5, 40) // Higher camera position to see sand floor clearly
     
     // Renderer configuration
     this.renderer = new THREE.WebGLRenderer({
@@ -64,6 +68,10 @@ export class SardinesScene {
     this.controls.dampingFactor = 0.05
     this.controls.maxDistance = 200
     this.controls.minDistance = 5
+    
+    // Allow looking down to see the floor
+    this.controls.maxPolarAngle = Math.PI // Allow full 180 degree rotation
+    this.controls.minPolarAngle = 0 // Allow looking straight up
     
 
     
@@ -88,16 +96,21 @@ export class SardinesScene {
     // Initialize underwater environment
     this.initializeUnderwaterEnvironment()
     
-    // Add boundary visualization after flock manager is ready
-    this.addBoundaryVisualization()
+    // Wall system removed - no walls or grids
+    
+    // Initialize sea floor model
+    this.initializeSeaFloorModel()
     
     // Subscribe to store changes for live parameter updates
     this.subscribeToStoreChanges()
+    
+    // Subscribe to sea floor parameter changes
+    this.subscribeToSeaFloorChanges()
   }
 
   private setupLighting(): void {
-    // Enhanced underwater lighting for realistic sardine visibility
-    const ambientLight = new THREE.AmbientLight(0x6BA3D6, 0.6) // Brighter blue-white ambient
+    // Enhanced underwater lighting for realistic sardine visibility and sand floor
+    const ambientLight = new THREE.AmbientLight(0x87CEEB, 0.8) // Brighter sky blue ambient for underwater feel
     this.scene.add(ambientLight)
     
     // Main directional light (sunlight through water) - ENHANCED for maximum brightness
@@ -116,12 +129,48 @@ export class SardinesScene {
     shineLight.position.set(100, 0, 0) // Side lighting for metallic highlights
     this.scene.add(shineLight)
     
-    // Subtle bottom light for floor visibility
-    const bottomLight = new THREE.DirectionalLight(0xE6F3FF, 0.3)
-    bottomLight.position.set(0, 150, 0)
+    // Enhanced bottom light for better sand floor visibility
+    const bottomLight = new THREE.DirectionalLight(0xFFFACD, 0.8) // Brighter warm light
+    bottomLight.position.set(0, 50, 0) // Much closer to illuminate floor better
+    bottomLight.target.position.set(0, -25, 0) // Target the new sand floor position
     this.scene.add(bottomLight)
+    this.scene.add(bottomLight.target)
     
-    console.log('Enhanced lighting setup for realistic sardine appearance')
+    // Additional point light near the floor for sand texture visibility
+    const floorLight = new THREE.PointLight(0xFFFFE0, 0.6, 150) // Bright light yellow
+    floorLight.position.set(0, -15, 0) // Much closer to the sand floor
+    this.scene.add(floorLight)
+    
+    // Extra spotlight directly on the floor for maximum visibility
+    const spotLight = new THREE.SpotLight(0xFFFFFF, 1.0, 100, Math.PI / 6, 0.5)
+    spotLight.position.set(0, -10, 0)
+    spotLight.target.position.set(0, -25, 0)
+    this.scene.add(spotLight)
+    this.scene.add(spotLight.target)
+
+    // Add ULTRA bright sand floor illumination system for maximum visibility
+    const sandLight = new THREE.PointLight(0xFFF8DC, 2.5, 300) // Cornsilk color, ultra bright
+    sandLight.position.set(0, -12, 0) // Close to sand floor at Y = -15
+    this.scene.add(sandLight)
+    
+    // Add multiple sand lights for complete coverage
+    const sandLight2 = new THREE.PointLight(0xF4E4BC, 2.0, 250) // Sandy beige matching floor
+    sandLight2.position.set(40, -10, 0) // Right side coverage
+    this.scene.add(sandLight2)
+    
+    const sandLight3 = new THREE.PointLight(0xF4E4BC, 2.0, 250) // Sandy beige matching floor  
+    sandLight3.position.set(-40, -10, 0) // Left side coverage
+    this.scene.add(sandLight3)
+    
+    const sandLight4 = new THREE.PointLight(0xF4E4BC, 2.0, 250) // Sandy beige matching floor
+    sandLight4.position.set(0, -10, 40) // Front coverage
+    this.scene.add(sandLight4)
+    
+    const sandLight5 = new THREE.PointLight(0xF4E4BC, 2.0, 250) // Sandy beige matching floor
+    sandLight5.position.set(0, -10, -40) // Back coverage  
+    this.scene.add(sandLight5)
+    
+    console.log('Enhanced lighting setup for realistic sardine appearance and sand floor visibility')
   }
 
   private initializeFlockManager(): void {
@@ -222,45 +271,39 @@ export class SardinesScene {
     // Natural underwater background color
     this.scene.background = new THREE.Color(0x1B4F72) // Deep blue water
     
-    // Lighter fog for better visibility
-    this.scene.fog = new THREE.Fog(0x1B4F72, 120, 400) // Fog starts at 120 units, fully foggy at 400
+    // Reduce fog to see floor better
+    this.scene.fog = new THREE.Fog(0x1B4F72, 200, 600) // Fog starts much farther, less interference
+    
+    // CRITICAL: Initialize the underwater environment (including sand floor)
+    this.initializeUnderwaterEnvironment()
+
   }
 
-  private addBoundaryVisualization(): void {
-    if (!this.flockManager) return
+  // Wall system removed - no walls or grids
+
+  private initializeSeaFloorModel(): void {
+    const store = useSimulationStore.getState()
+    const seaFloorParams = store.parameters.seaFloor
     
-    const bounds = this.flockManager.getConfig().bounds
+    const seaFloorConfig: SeaFloorConfig = {
+      enabled: seaFloorParams.enabled,
+      scale: seaFloorParams.scale,
+      position: new THREE.Vector3(seaFloorParams.positionX, seaFloorParams.positionY, seaFloorParams.positionZ),
+      rotation: new THREE.Euler(seaFloorParams.rotationX, seaFloorParams.rotationY, seaFloorParams.rotationZ),
+      receiveShadows: seaFloorParams.receiveShadows,
+      castShadows: seaFloorParams.castShadows
+    }
     
-    // Create wireframe box to show swimming boundaries
-    const size = new THREE.Vector3()
-    bounds.getSize(size)
+    this.seaFloorModel = new SeaFloorModel(this.scene, seaFloorConfig)
     
-    const center = new THREE.Vector3()
-    bounds.getCenter(center)
-    
-    // Create box geometry
-    const boxGeometry = new THREE.BoxGeometry(size.x, size.y, size.z)
-    const boxMaterial = new THREE.MeshBasicMaterial({
-      color: 0x4A90E2,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.15
-    })
-    
-    const boundaryBox = new THREE.Mesh(boxGeometry, boxMaterial)
-    boundaryBox.position.copy(center)
-    
-    // Add to scene
-    this.scene.add(boundaryBox)
-    
-    console.log('Swimming boundaries restored:', {
-      center: center,
-      size: size,
-      bounds: {
-        min: bounds.min,
-        max: bounds.max
-      }
-    })
+    // Load the model asynchronously if enabled
+    if (seaFloorParams.enabled) {
+      this.seaFloorModel.loadModel().then(() => {
+        console.log('🌊 Sea floor model loaded and added to scene')
+      }).catch((error) => {
+        console.error('❌ Failed to load sea floor model:', error)
+      })
+    }
   }
 
   private handleResize(): void {
@@ -297,6 +340,8 @@ export class SardinesScene {
     if (this.underwaterEnvironment) {
       this.underwaterEnvironment.update(deltaTime)
     }
+
+    // Wall system removed - no walls or grids
 
          // Update special cameras (follow/action/single-fish modes)
      this.updateSpecialCameras()
@@ -399,11 +444,11 @@ export class SardinesScene {
     flockCenter.divideScalar(fish.length)
 
     if (this.currentCameraMode === 'follow') {
-      // Follow camera: smoothly follow the flock center
+      // Follow camera: smoothly follow the flock center (closer)
       const targetPosition = new THREE.Vector3(
         flockCenter.x,
-        flockCenter.y + 60, // Keep camera above the flock
-        flockCenter.z + 150 // Keep camera behind the flock
+        flockCenter.y + 40, // Closer to the flock
+        flockCenter.z + 80 // Much closer behind the flock
       )
       
       // Smooth camera movement
@@ -412,7 +457,7 @@ export class SardinesScene {
       this.controls.update()
       
     } else if (this.currentCameraMode === 'action') {
-      // Action camera: dynamic angle that follows flock movement
+      // Action camera: dynamic angle that follows flock movement with variable height
       const flockVelocity = new THREE.Vector3()
       fish.forEach(fish => {
         flockVelocity.add(fish.physics.velocity)
@@ -421,16 +466,119 @@ export class SardinesScene {
       
       // Calculate dynamic camera position based on flock movement
       const movementDirection = flockVelocity.clone().normalize()
+      const speed = flockVelocity.length()
+      
+      // Dynamic height based on flock speed and position with more random, longer variations
+      const baseHeight = 40
+      const speedHeightVariation = Math.min(speed * 2, 30) // Height increases with speed
+      
+      // More random and longer height variations using multiple sine waves
+      const time = Date.now() * 0.0005 // Slower base frequency
+      const longVariation = Math.sin(time) * 25 // Longer, larger oscillation
+      const mediumVariation = Math.sin(time * 2.3) * 15 // Medium frequency variation
+      const shortVariation = Math.sin(time * 5.7) * 8 // Short frequency variation
+      const randomVariation = Math.sin(time * 1.7 + Math.sin(time * 0.3) * 10) * 12 // Chaotic variation
+      
+      const flockHeightVariation = longVariation + mediumVariation + shortVariation + randomVariation
+      const dynamicHeight = baseHeight + speedHeightVariation + flockHeightVariation
+      
       const actionPosition = new THREE.Vector3(
         flockCenter.x + movementDirection.x * 120,
-        flockCenter.y + 40,
+        flockCenter.y + dynamicHeight,
         flockCenter.z + movementDirection.z * 80
       )
       
-      // Smooth camera movement with faster response for action camera
-      this.camera.position.lerp(actionPosition, this.cameraLerpFactor * 2)
-      this.controls.target.lerp(flockCenter, this.cameraLerpFactor * 2)
+      // Super smooth camera movement for action camera (reduced responsiveness)
+      this.camera.position.lerp(actionPosition, this.cameraLerpFactor * 0.3)
+      this.controls.target.lerp(flockCenter, this.cameraLerpFactor * 0.3)
       this.controls.update()
+    } else if (this.currentCameraMode === 'dolly-cam') {
+      // Dolly cam: finds and follows the most crowded schools
+      const clusterCenters: Array<{ center: THREE.Vector3; density: number; fish: any[] }> = []
+      
+      // Find clusters of fish using spatial partitioning
+      const clusterRadius = 30
+      const visited = new Set<number>()
+      
+      fish.forEach((currentFish, index) => {
+        if (visited.has(index)) return
+        
+        const cluster: any[] = []
+        const clusterCenter = new THREE.Vector3()
+        
+        // Find all fish within cluster radius
+        fish.forEach((otherFish, otherIndex) => {
+          if (visited.has(otherIndex)) return
+          
+          const distance = currentFish.physics.position.distanceTo(otherFish.physics.position)
+          if (distance <= clusterRadius) {
+            cluster.push(otherFish)
+            clusterCenter.add(otherFish.physics.position)
+            visited.add(otherIndex)
+          }
+        })
+        
+        if (cluster.length > 5) { // Only consider meaningful clusters
+          clusterCenter.divideScalar(cluster.length)
+          clusterCenters.push({
+            center: clusterCenter,
+            density: cluster.length,
+            fish: cluster
+          })
+        }
+      })
+      
+      // Find the densest cluster
+      let targetCluster = clusterCenters[0]
+      if (clusterCenters.length > 1) {
+        targetCluster = clusterCenters.reduce((max, cluster) => 
+          cluster.density > max.density ? cluster : max
+        )
+      }
+      
+      // Debug logging for dolly cam
+      if (clusterCenters.length > 0) {
+        console.log(`🎬 Dolly Cam: Found ${clusterCenters.length} clusters, targeting cluster with ${targetCluster.density} fish`)
+      }
+      
+      if (targetCluster) {
+        // Calculate dolly cam position - close and dynamic
+        const clusterVelocity = new THREE.Vector3()
+        targetCluster.fish.forEach(fish => {
+          clusterVelocity.add(fish.physics.velocity)
+        })
+        clusterVelocity.divideScalar(targetCluster.fish.length)
+        
+        // Dynamic dolly positioning based on cluster movement
+        const movementDirection = clusterVelocity.clone().normalize()
+        const speed = clusterVelocity.length()
+        
+        // Closer positioning for intimate shots
+        const baseDistance = 40 + Math.min(speed * 3, 20) // Distance varies with speed
+        const heightVariation = Math.sin(Date.now() * 0.001) * 8 // Gentle height oscillation
+        
+        const dollyPosition = new THREE.Vector3(
+          targetCluster.center.x + movementDirection.x * baseDistance,
+          targetCluster.center.y + 25 + heightVariation,
+          targetCluster.center.z + movementDirection.z * baseDistance
+        )
+        
+        // Smooth dolly movement
+        this.camera.position.lerp(dollyPosition, this.cameraLerpFactor * 0.4)
+        this.controls.target.lerp(targetCluster.center, this.cameraLerpFactor * 0.4)
+        this.controls.update()
+      } else {
+        // Fallback: if no clusters found, follow the flock center
+        console.log('🎬 Dolly Cam: No clusters found, following flock center')
+        const fallbackPosition = new THREE.Vector3(
+          flockCenter.x,
+          flockCenter.y + 40,
+          flockCenter.z + 60
+        )
+        this.camera.position.lerp(fallbackPosition, this.cameraLerpFactor * 0.4)
+        this.controls.target.lerp(flockCenter, this.cameraLerpFactor * 0.4)
+        this.controls.update()
+      }
     } else if (this.currentCameraMode === 'single-fish') {
       // Single fish follow camera - smooth following with depth variation
       const targetFish = fish[0] // Follow the first fish
@@ -478,7 +626,16 @@ export class SardinesScene {
     return this.flockManager
   }
 
+  // Wall system methods removed
+
   public dispose(): void {
+    // Wall system removed
+    
+    // Cleanup sea floor model
+    if (this.seaFloorModel) {
+      this.seaFloorModel.dispose()
+    }
+    
     // Cleanup fish renderer
     if (this.fishRenderer) {
       this.fishRenderer.dispose()
@@ -552,6 +709,38 @@ export class SardinesScene {
         // Update fish count if changed
         if (state.parameters.rendering.fishCount !== undefined) {
           this.flockManager.setFishCount(state.parameters.rendering.fishCount)
+        }
+      }
+      
+      // Wall system removed
+    })
+  }
+
+  /**
+   * Subscribe to sea floor parameter changes
+   */
+  private subscribeToSeaFloorChanges(): void {
+    useSimulationStore.subscribe((state) => {
+      if (this.seaFloorModel && state.parameters.seaFloor) {
+        const seaFloorParams = state.parameters.seaFloor
+        
+        // Update sea floor configuration
+        const seaFloorConfig: SeaFloorConfig = {
+          enabled: seaFloorParams.enabled,
+          scale: seaFloorParams.scale,
+          position: new THREE.Vector3(seaFloorParams.positionX, seaFloorParams.positionY, seaFloorParams.positionZ),
+          rotation: new THREE.Euler(seaFloorParams.rotationX, seaFloorParams.rotationY, seaFloorParams.rotationZ),
+          receiveShadows: seaFloorParams.receiveShadows,
+          castShadows: seaFloorParams.castShadows
+        }
+        
+        this.seaFloorModel.updateConfig(seaFloorConfig)
+        
+        // Load or unload model based on enabled state
+        if (seaFloorParams.enabled && !this.seaFloorModel.getModel()) {
+          this.seaFloorModel.loadModel()
+        } else if (!seaFloorParams.enabled && this.seaFloorModel.getModel()) {
+          this.seaFloorModel.dispose()
         }
       }
     })

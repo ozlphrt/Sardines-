@@ -202,6 +202,8 @@ const Sidebar: React.FC = () => {
     </div>
   )
 
+  // Sea floor controls removed
+
   const renderPerformanceControls = () => (
     <div className="space-y-1">
       <div className="space-y-0.5">
@@ -320,14 +322,14 @@ const Sidebar: React.FC = () => {
             Close
           </button>
           <button
-            onClick={() => actions.loadCameraPreset('far')}
+            onClick={() => actions.loadCameraPreset('dolly-cam')}
             className={`px-1 py-0.5 rounded text-xs transition-colors ${
-              ui.selectedCameraPreset === 'far' 
+              ui.selectedCameraPreset === 'dolly-cam' 
                 ? 'bg-success/40 text-success font-semibold' 
                 : 'bg-success/20 hover:bg-success/30 text-success'
             }`}
           >
-            Far
+            Dolly Cam
           </button>
           <button
             onClick={() => actions.loadCameraPreset('action')}
@@ -359,30 +361,23 @@ const Sidebar: React.FC = () => {
           >
             Single Fish
           </button>
-          <button
-            onClick={() => actions.loadCameraPreset('corner')}
-            className={`px-1 py-0.5 rounded text-xs transition-colors ${
-              ui.selectedCameraPreset === 'corner' 
-                ? 'bg-success/40 text-success font-semibold' 
-                : 'bg-success/20 hover:bg-success/30 text-success'
-            }`}
-          >
-            Corner
-          </button>
+          {/* Corner camera removed */}
         </div>
       </div>
     </div>
   )
 
+
+
   return (
     <div className="absolute left-4 top-4 bottom-4 w-80 pointer-events-auto">
-      <div className="glass-panel h-full p-4 flex flex-col">
+      <div className="glass-panel h-full p-3 flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold text-text">Sardines Simulation</h2>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-base font-semibold text-text">Sardines Simulation</h2>
           <button
             onClick={actions.toggleSidebar}
-            className="text-muted hover:text-text transition-colors"
+            className="text-muted hover:text-text transition-colors text-sm"
             aria-label="Close sidebar"
           >
             ✕
@@ -390,11 +385,11 @@ const Sidebar: React.FC = () => {
         </div>
 
         {/* Consolidated Content */}
-        <div className="flex-1 overflow-y-auto space-y-2">
+        <div className="flex-1 overflow-y-auto space-y-1">
           {/* Flocking Behavior Section */}
           <div>
             <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mb-0.5 flex items-center">
-              <span className="mr-2">🐟</span>Flocking Behavior
+              <span className="mr-1">🐟</span>Flocking Behavior
             </h3>
             {renderBehaviorControls()}
           </div>
@@ -402,7 +397,7 @@ const Sidebar: React.FC = () => {
           {/* Individual Movement Section */}
           <div>
             <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mb-0.5 flex items-center">
-              <span className="mr-2">⚡</span>Individual Movement
+              <span className="mr-1">⚡</span>Individual Movement
             </h3>
             {renderPhysicsControls()}
           </div>
@@ -410,15 +405,19 @@ const Sidebar: React.FC = () => {
           {/* Animation & Rendering Section */}
           <div>
             <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mb-0.5 flex items-center">
-              <span className="mr-2">🎨</span>Animation & Rendering
+              <span className="mr-1">🎨</span>Animation & Rendering
             </h3>
             {renderRenderingControls()}
           </div>
 
+          {/* Sea Floor Section Removed */}
+
+
+
           {/* Presets Section */}
           <div>
             <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mb-0.5 flex items-center">
-              <span className="mr-2">📊</span>Presets & Controls
+              <span className="mr-1">📊</span>Presets & Controls
             </h3>
             {renderPerformanceControls()}
           </div>
@@ -427,7 +426,7 @@ const Sidebar: React.FC = () => {
         {/* Footer */}
         <div className="mt-1 pt-1 border-t border-hairline">
           <div className="text-xs text-muted text-center">
-            Press <kbd className="px-1 py-0.5 bg-bg1 rounded text-xs">B</kbd> to toggle sidebar
+            Press <kbd className="px-1 py-0.5 bg-bg1 rounded text-xs">B</kbd> to toggle
           </div>
         </div>
       </div>
