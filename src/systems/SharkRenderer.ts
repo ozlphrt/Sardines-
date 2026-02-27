@@ -8,8 +8,9 @@ export class SharkRenderer {
     private currentAction: THREE.AnimationAction | null = null
     private isLoaded: boolean = false
     private visible: boolean = false
-    private targetPosition: THREE.Vector3 = new THREE.Vector3()
-    private lerpSpeed: number = 0.05
+    private targetPosition: THREE.Vector3 = new THREE.Vector3(0, -10, 50)
+    private hasBeenPositioned: boolean = false
+    private lerpSpeed: number = 0.03
 
     constructor(scene: THREE.Scene) {
         this.scene = scene
@@ -61,9 +62,10 @@ export class SharkRenderer {
 
     public setPosition(position: THREE.Vector3): void {
         this.targetPosition.copy(position)
-        if (!this.visible && this.model) {
-            // Snap to position if just becoming visible
-            this.model.position.copy(position)
+        // Snap to position on first call so shark doesn't crawl from origin
+        if (!this.hasBeenPositioned) {
+            this.hasBeenPositioned = true
+            if (this.model) this.model.position.copy(position)
         }
     }
 
@@ -82,12 +84,14 @@ export class SharkRenderer {
         // Smoothly follow the target position
         this.model.position.lerp(this.targetPosition, this.lerpSpeed)
 
-        // Look at the target (or maintain orientation if at target)
-        if (this.model.position.distanceTo(this.targetPosition) > 0.1) {
+        // Face movement direction, then reapply model-specific rotation offset
+        if (this.model.position.distanceTo(this.targetPosition) > 1.0) {
             const lookTarget = this.targetPosition.clone()
+            // Temporarily clear rotation offset to get a clean lookAt
+            this.model.rotation.set(0, 0, 0)
             this.model.lookAt(lookTarget)
-            // The model might need a rotation correction depending on its original orientation
-            // For many Sketchfab models, Z+ is forward.
+            // Reapply the 180° Y offset so the shark faces forward in its own mesh space
+            this.model.rotateY(Math.PI)
         }
     }
 
