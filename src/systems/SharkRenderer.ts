@@ -21,38 +21,32 @@ export class SharkRenderer {
             const loader = new GLTFLoader()
             const basePath = (import.meta as any).env.BASE_URL || '/'
 
-            // Using the new Great White Shark model
+            // Using the Great White Shark model
             const modelPath = `${basePath}models/great_white_shark/scene.gltf`
 
-            console.log('SharkRenderer: Loading model from', modelPath)
             const gltf = await loader.loadAsync(modelPath)
 
             this.model = gltf.scene
 
-            // Debugging scale/visibility
-            const box = new THREE.Box3().setFromObject(this.model)
-            const size = new THREE.Vector3()
-            box.getSize(size)
-            console.log('SharkRenderer: Original model size:', size)
+            // native scale of the great white model seems small in some exports
+            // User requested 4X larger than 0.5 -> 2.0
+            this.model.scale.set(2.0, 2.0, 2.0)
+            // Adjust model orientation if needed (e.g., if it loads facing the wrong way)
+            // A common correction for GLTF models is to rotate 180 degrees around the Y-axis
+            this.model.rotation.y = Math.PI;
 
-            this.model.scale.set(10.0, 10.0, 10.0) // TEMPORARILY set to much larger scale to test visibility
-            this.model.visible = false
+            // Set initial visibility from the current state
+            this.model.visible = this.visible
             this.scene.add(this.model)
-
-            const newBox = new THREE.Box3().setFromObject(this.model)
-            newBox.getSize(size)
-            console.log('SharkRenderer: Scaled model size:', size)
 
             // Setup animations
             if (gltf.animations && gltf.animations.length > 0) {
                 this.mixer = new THREE.AnimationMixer(this.model)
-                // Find the swimming animation (usually index 0 or named appropriately)
                 this.currentAction = this.mixer.clipAction(gltf.animations[0])
                 this.currentAction.play()
             }
 
             this.isLoaded = true
-            console.log('SharkRenderer: Model loaded successfully')
         } catch (error) {
             console.error('SharkRenderer: Failed to load shark model:', error)
         }

@@ -442,9 +442,9 @@ export class SardinesScene {
 
       if (state.sharkVisible && !state.predatorVisible && state.sharkPatrol) {
         // PERMANENT SHARK HUNTING/WANDERING MODE
-        // Every ~2 seconds, check for a new "largest school" target
+        // Every ~1 second, check for a new "largest school" target
         const time = performance.now() * 0.001
-        if (time - this.lastSharkUpdateTime > 2.0 && this.flockManager) {
+        if (time - this.lastSharkUpdateTime > 1.0 && this.flockManager) {
           const huntTarget = this.flockManager.getHuntTarget()
           if (huntTarget) {
             this.sharkTarget = huntTarget
@@ -460,10 +460,14 @@ export class SardinesScene {
         }
 
         if (this.sharkTarget) {
-          // Move towards target with a bit of organic sway
-          const wanderX = Math.sin(time * 0.5) * 15
-          const wanderY = Math.cos(time * 0.3) * 5
+          // Direct chasing when a school is found, much less wandering
+          const isHunting = !!(this.flockManager && this.flockManager.getHuntTarget())
+          const wanderScale = isHunting ? 2 : 15
+          const wanderX = Math.sin(time * 0.5) * wanderScale
+          const wanderY = Math.cos(time * 0.3) * (wanderScale / 3)
           const targetWithWander = this.sharkTarget.clone().add(new THREE.Vector3(wanderX, wanderY, 0))
+
+          // Use a faster lerp for more aggressive chasing
           this.sharkRenderer.setPosition(targetWithWander)
         }
       } else if (state.predatorVisible) {
