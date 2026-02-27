@@ -7,14 +7,19 @@ export class SharkRenderer {
     private mixer: THREE.AnimationMixer | null = null
     private isLoaded: boolean = false
     private visible: boolean = false
+
+    // Hunting target — set externally
     private targetPosition: THREE.Vector3 = new THREE.Vector3(0, -10, 50)
     private hasBeenPositioned: boolean = false
-    private lerpSpeed: number = 0.03
 
-    // Smooth rotation
-    private currentQuaternion: THREE.Quaternion = new THREE.Quaternion()
-    private targetQuaternion: THREE.Quaternion = new THREE.Quaternion()
-    private rotationLerpSpeed: number = 0.02 // Very slow turn for a big animal
+    // Shark always moves FORWARD at this speed (units/s)
+    private swimSpeed: number = 6.0
+
+    // Current facing direction (world space, normalised)
+    private heading: THREE.Vector3 = new THREE.Vector3(0, 0, 1)
+
+    // How fast the shark can turn (radians/s) — very slow for a big animal
+    private maxTurnRate: number = 0.25
 
     constructor(scene: THREE.Scene) {
         this.scene = scene
@@ -30,12 +35,11 @@ export class SharkRenderer {
             const gltf = await loader.loadAsync(modelPath)
 
             this.model = gltf.scene
-            // 5x bigger than previous 2.0 = 10.0
             this.model.scale.set(10.0, 10.0, 10.0)
             this.model.position.copy(this.targetPosition)
             this.model.visible = this.visible
 
-            // Force every descendant to be visible with correct materials
+            // Force every descendant visible with double-sided materials
             this.model.traverse((child) => {
                 child.visible = true
                 if ((child as THREE.Mesh).isMesh) {
@@ -51,11 +55,6 @@ export class SharkRenderer {
 
             this.scene.add(this.model)
 
-            // Initialise current quaternion from the starting rotation
-            this.model.rotation.set(0, 0, 0)
-            this.currentQuaternion.copy(this.model.quaternion)
-            this.targetQuaternion.copy(this.model.quaternion)
-
             // Setup animations
             if (gltf.animations && gltf.animations.length > 0) {
                 this.mixer = new THREE.AnimationMixer(this.model)
@@ -64,7 +63,6 @@ export class SharkRenderer {
             }
 
             this.isLoaded = true
-            console.log('SharkRenderer: ready. scale=10 visible=', this.model.visible)
         } catch (error) {
             console.error('SharkRenderer: Failed to load shark model:', error)
         }
@@ -72,13 +70,12 @@ export class SharkRenderer {
 
     public setVisibility(visible: boolean): void {
         this.visible = visible
-        if (this.model) {
-            this.model.visible = visible
-        }
+        if (this.model) this.model.visible = visible
     }
 
     public setPosition(position: THREE.Vector3): void {
         this.targetPosition.copy(position)
+        // On first call, snap position so sharks doesn't start at origin
         if (!this.hasBeenPositioned) {
             this.hasBeenPositioned = true
             if (this.model) this.model.position.copy(position)
@@ -92,27 +89,42 @@ export class SharkRenderer {
     public update(deltaTime: number): void {
         if (!this.isLoaded || !this.model || !this.visible) return
 
+        // Animate skeleton
         if (this.mixer) this.mixer.update(deltaTime)
 
-        // Move toward target
-        this.model.position.lerp(this.targetPosition, this.lerpSpeed)
+        // --- FORWARD-ONLY LOCOMOTION ---
+        // 1. Compute desired direction toward hunting target
+        const toTarget = this.targetPosition.clone().sub(this.model.position)
+        toTarget.y *= 0.3 // dampen vertical — sharks swim mostly horizontally
+        const distToTarget = toTarget.length()
 
-        // Compute smooth rotation toward movement direction using slerp
-        const moveDelta = this.targetPosition.clone().sub(this.model.position)
-        if (moveDelta.length() > 1.0) {
-            // Build a lookAt matrix for target direction, extract quaternion
-            const lookAtMatrix = new THREE.Matrix4()
-            const up = new THREE.Vector3(0, 1, 0)
-            lookAtMatrix.lookAt(this.model.position, this.targetPosition, up)
-            this.targetQuaternion.setFromRotationMatrix(lookAtMatrix)
-            // Apply the 180° Y correction in quaternion space
-            const correction = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI)
-            this.targetQuaternion.multiply(correction)
+        if (distToTarget > 2.0) {
+            const desiredHeading = toTarget.clone().normalize()
+
+            // 2. Compute signed angle between current heading and desired heading
+            //    We slerp the heading vector at max turn rate per second
+            const maxRotThisFrame = this.maxTurnRate * deltaTime
+            const cosAngle = Math.max(-1, Math.min(1, this.heading.dot(desiredHeading)))
+            const angleBetween = Math.acos(cosAngle)
+
+            if (angleBetween > 0.001) {
+                // How much of the turn we can do this frame
+                const t = Math.min(1.0, maxRotThisFrame / angleBetween)
+                this.heading.lerp(desiredHeading, t).normalize()
+            }
         }
 
-        // Slerp current rotation toward target — smooth like a real animal
-        this.currentQuaternion.slerp(this.targetQuaternion, this.rotationLerpSpeed)
-        this.model.quaternion.copy(this.currentQuaternion)
+        // 3. Move forward in (current) heading direction
+        const velocity = this.heading.clone().multiplyScalar(this.swimSpeed * deltaTime)
+        this.model.position.add(velocity)
+
+        // 4. Face the heading direction (Y-up, with model-space 180° correction)
+        const lookTarget = this.model.position.clone().add(this.heading)
+        const lookMatrix = new THREE.Matrix4()
+        lookMatrix.lookAt(this.model.position, lookTarget, new THREE.Vector3(0, 1, 0))
+        this.model.quaternion.setFromRotationMatrix(lookMatrix)
+        // Apply 180° Y correction so the shark mesh faces forward
+        this.model.rotateY(Math.PI)
     }
 
     public dispose(): void {
