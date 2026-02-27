@@ -45,7 +45,7 @@ function App() {
       </div>
 
       {/* Settings Cog - Moved outside overlay to guarantee visibility */}
-      <div className="absolute bottom-6 right-6 z-[99999]">
+      <div className="fixed bottom-8 right-6 md:bottom-6 md:right-6 z-[99999]">
         <button
           onClick={actions.toggleSidebar}
           className="flex items-center justify-center w-12 h-12 bg-white/20 hover:bg-white/30 border border-white/30 backdrop-blur-md rounded-full text-white transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.2)] hover:shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:rotate-90 hover:scale-110 cursor-pointer"

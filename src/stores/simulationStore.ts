@@ -259,7 +259,7 @@ const defaultPerformance: PerformanceData = {
 }
 
 const defaultCamera: CameraState = {
-  position: { x: 180, y: 60, z: 120 }, // Adjusted for 250 radius swimmable area
+  position: { x: 0, y: 60, z: 150 }, // Default position for single-fish preset
   target: { x: 0, y: 0, z: 0 },
 }
 
@@ -269,7 +269,7 @@ const defaultUI: UIState = {
   fullscreen: false,
   activeSection: 'behavior',
   selectedBehaviorPreset: 'default',
-  selectedCameraPreset: 'follow', // Default to single fish follow camera
+  selectedCameraPreset: 'single-fish', // Default to single fish camera
 }
 
 // Store creation
@@ -628,6 +628,8 @@ export const useSimulationStore = create<SimulationStore>()(
           state.parameters.rendering = { ...defaultRendering }
           state.parameters.physics = { ...defaultPhysics }
           state.ui.sidebarVisible = false // Force sidebar closed on load as requested
+          state.ui.selectedCameraPreset = 'single-fish' // Force single-fish camera on load
+          state.camera = { position: { x: 0, y: 60, z: 150 }, target: { x: 0, y: 0, z: 0 } }
           console.log('🔄 FINAL COORDINATION RESET APPLIED')
         }
       },
