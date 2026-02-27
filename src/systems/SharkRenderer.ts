@@ -62,6 +62,10 @@ export class SharkRenderer {
         }
     }
 
+    public getPosition(): THREE.Vector3 {
+        return this.model ? this.model.position : this.targetPosition
+    }
+
     public update(deltaTime: number): void {
         if (!this.isLoaded || !this.model || !this.visible) return
 

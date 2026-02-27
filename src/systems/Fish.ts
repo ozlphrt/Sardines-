@@ -239,8 +239,21 @@ export class Fish {
   /**
    * Main update method - Phase 1 core movements + Flocking + Boundary Avoidance
    */
-  public update(deltaTime: number, neighbors?: Fish[], bounds?: THREE.Box3): void {
+  public update(deltaTime: number, neighbors?: Fish[], bounds?: THREE.Box3, activePredatorPosition: THREE.Vector3 | null = null): void {
     const currentTime = performance.now() * 0.001
+
+    // Update real-time predator interaction
+    if (activePredatorPosition) {
+      this.predatorSource = activePredatorPosition.clone()
+
+      // Auto-trigger burst or bait ball if shark gets too close and we're not already reacting
+      const distToShark = this.physics.position.distanceTo(activePredatorPosition)
+      const triggersThreshold = this.behavior.neighborRadius * 1.5
+
+      if (distToShark < triggersThreshold && this.state === FishState.CRUISE) {
+        this.triggerPredator(activePredatorPosition, currentTime)
+      }
+    }
 
     // State machine logic
     this.updateStateLogic(deltaTime, currentTime)

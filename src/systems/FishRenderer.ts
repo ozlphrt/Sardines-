@@ -192,7 +192,7 @@ export class FishRenderer {
         float headZ = 0.8;
         float tailZ = -1.15;
         float tailWeight = clamp((headZ - position.z) / (headZ - tailZ), 0.0, 1.0);
-        float waveIntensity = tailWeight * tailWeight * 2.5;
+        float waveIntensity = tailWeight * tailWeight * 1.2;
         float bend = instanceWiggle * waveIntensity;
         transformed.x += sin(bend) * tailWeight;
         `

@@ -412,7 +412,11 @@ export class SardinesScene {
 
     // Update flock manager
     if (this.flockManager) {
-      this.flockManager.update(deltaTime)
+      let predatorPos: THREE.Vector3 | null = null
+      if (this.sharkRenderer && useSimulationStore.getState().predatorVisible) {
+        predatorPos = this.sharkRenderer.getPosition()
+      }
+      this.flockManager.update(deltaTime, predatorPos)
     }
 
     // Update fish renderer

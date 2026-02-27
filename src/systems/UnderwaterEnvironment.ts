@@ -66,8 +66,12 @@ export class UnderwaterEnvironment {
         uniform float uTime;
 
         void main() {
-          // Horizontal fade (cylinder edges)
-          float alpha = smoothstep(0.0, 0.5, vUv.x) * smoothstep(1.0, 0.5, vUv.x);
+          // Circular falloff from the center of the cylinder face (UV.x)
+          // Since it's a cylinder, vUv.x goes from 0 to 1 around the circumference
+          // However, for the 'side' view of rays, we use a cosine-based falloff 
+          // to make the edges soft.
+          float horizontalFalloff = sin(vUv.x * 3.14159);
+          horizontalFalloff = pow(horizontalFalloff, 2.0); // Sharpen the falloff slightly but keep edges soft
           
           // Vertical fade (surface to deep)
           float vFade = vUv.y; 
@@ -75,7 +79,7 @@ export class UnderwaterEnvironment {
           // Pulsing effect
           float pulse = 0.8 + 0.2 * sin(uTime * 0.2 + vUv.x * 10.0);
           
-          gl_FragColor = vec4(uColor, alpha * vFade * uOpacity * pulse);
+          gl_FragColor = vec4(uColor, horizontalFalloff * vFade * uOpacity * pulse);
         }
       `
     })

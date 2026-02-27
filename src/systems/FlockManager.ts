@@ -57,7 +57,7 @@ export class FlockManager {
   /**
    * Update all fish with individual movement + flocking behavior + boundary avoidance
    */
-  public update(deltaTime: number): void {
+  public update(deltaTime: number, predatorPosition: THREE.Vector3 | null = null): void {
     if (this.isPaused) return
 
     // Update spatial partitioning grid
@@ -66,7 +66,7 @@ export class FlockManager {
     // Update each fish with access to potential neighbors in nearby grid cells
     this.fish.forEach(fish => {
       this.populateNearbyFish(fish)
-      fish.update(deltaTime, this.nearbyFishBuffer, this.config.bounds)
+      fish.update(deltaTime, this.nearbyFishBuffer, this.config.bounds, predatorPosition)
     })
   }
 
