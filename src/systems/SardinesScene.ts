@@ -41,6 +41,7 @@ export class SardinesScene {
   private cameraLerpFactor: number = 0.02
 
   private frameTimeHistory: number[] = []
+  private sharkAngle: number = 0
 
   private raycaster: THREE.Raycaster = new THREE.Raycaster()
   private mouse: THREE.Vector2 = new THREE.Vector2()
@@ -432,6 +433,26 @@ export class SardinesScene {
 
     // Update shark renderer
     if (this.sharkRenderer) {
+      const state = useSimulationStore.getState()
+
+      // Handle visibility (Permanent OR predator event)
+      const isSharkVisible = state.sharkVisible || state.predatorVisible
+      this.sharkRenderer.setVisibility(isSharkVisible)
+
+      if (state.sharkVisible && !state.predatorVisible && state.sharkPatrol) {
+        // Permanent shark patrol mode
+        this.sharkAngle += deltaTime * 0.15 // Slow circular swimming
+        const radius = 120
+        const x = Math.cos(this.sharkAngle) * radius
+        const z = Math.sin(this.sharkAngle) * radius
+        const y = -10 + Math.sin(this.sharkAngle * 0.5) * 10 // Gentle vertical movement
+        this.sharkRenderer.setPosition(new THREE.Vector3(x, y, z))
+      } else if (state.predatorVisible) {
+        // Controlled by predator event (mouse click)
+        const pos = state.predatorPosition
+        this.sharkRenderer.setPosition(new THREE.Vector3(pos.x, pos.y, pos.z))
+      }
+
       this.sharkRenderer.update(deltaTime)
     }
 

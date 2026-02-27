@@ -66,15 +66,16 @@ export class UnderwaterEnvironment {
         uniform float uTime;
 
         void main() {
-          // Much softer radial falloff using higher power
+          // Extremely soft radial falloff using very high power
           float horizontalFalloff = sin(vUv.x * 3.14159);
-          horizontalFalloff = pow(horizontalFalloff, 6.0); // Increased power for very soft, blurred edges
+          horizontalFalloff = pow(horizontalFalloff, 12.0); // Doubled power for ultra-blurred edges
           
-          // Smooth vertical edges: fade out at the very top to avoid sharp surface cut-off
-          float vFade = smoothstep(0.0, 0.1, vUv.y) * smoothstep(1.0, 0.7, vUv.y);
+          // Smoother vertical edges: even more gradual fade at the top
+          // This avoids the 'cut-off' look entirely
+          float vFade = smoothstep(0.0, 0.2, vUv.y) * smoothstep(1.0, 0.6, vUv.y);
           
           // Pulsing effect
-          float pulse = 0.8 + 0.2 * sin(uTime * 0.2 + vUv.x * 10.0);
+          float pulse = 0.85 + 0.15 * sin(uTime * 0.2 + vUv.x * 10.0);
           
           gl_FragColor = vec4(uColor, horizontalFalloff * vFade * uOpacity * pulse);
         }

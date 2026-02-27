@@ -142,11 +142,15 @@ export interface SimulationStore {
   // Predator state
   predatorVisible: boolean
   predatorPosition: { x: number; y: number; z: number }
+  sharkVisible: boolean
+  sharkPatrol: boolean
 
   // Actions
   actions: {
-    updateParameter: (category: keyof SimulationStore['parameters'], param: string, value: number | string) => void
+    updateParameter: (category: keyof SimulationStore['parameters'], param: string, value: number | string | boolean) => void
     togglePause: () => void
+    setSharkVisible: (visible: boolean) => void
+    setSharkPatrol: (patrol: boolean) => void
     resetSimulation: () => void
     loadPreset: (preset: string) => void
     loadCameraPreset: (preset: string) => void
@@ -298,6 +302,8 @@ export const useSimulationStore = create<SimulationStore>()(
 
       predatorVisible: false,
       predatorPosition: { x: 0, y: 0, z: 0 },
+      sharkVisible: false,
+      sharkPatrol: true,
 
       performance: defaultPerformance,
 
@@ -323,6 +329,14 @@ export const useSimulationStore = create<SimulationStore>()(
               isPaused: !state.performance.isPaused,
             },
           }))
+        },
+
+        setSharkVisible: (visible) => {
+          set({ sharkVisible: visible })
+        },
+
+        setSharkPatrol: (patrol) => {
+          set({ sharkPatrol: patrol })
         },
 
         resetSimulation: () => {

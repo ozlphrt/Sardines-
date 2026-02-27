@@ -81,11 +81,11 @@ export class FishRenderer {
       switch (key) {
         case 'tropical':
           modelDir = 'models/animated_swimming_tropical_fish_school_loop/'
-          baseScale = 0.003 // Normalize relative to sardine
+          baseScale = 0.0012 // Reduced from 0.003 to match sardine size better
           break
         case 'school':
           modelDir = 'models/school_of_fish/'
-          baseScale = 0.003 // Normalize relative to sardine
+          baseScale = 0.0012 // Reduced from 0.003 to match sardine size better
           break
         case 'sardine':
         default:

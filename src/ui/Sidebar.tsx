@@ -24,6 +24,25 @@ const Folder: React.FC<FolderProps> = ({ title, children, initialOpen = true }) 
   )
 }
 
+interface CheckboxProps {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}
+
+const Checkbox: React.FC<CheckboxProps> = ({ label, checked, onChange }) => {
+  return (
+    <div className="dat-gui-row cursor-pointer" onClick={() => onChange(!checked)}>
+      <div className="dat-gui-label">{label}</div>
+      <div className="dat-gui-controller px-1 flex items-center">
+        <div className={`w-3 h-3 rounded-sm border border-[#444] flex items-center justify-center ${checked ? 'bg-[#2fa1d6]' : 'bg-[#111]'}`}>
+          {checked && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const Sidebar: React.FC = () => {
   const { ui, parameters, actions } = useSimulationStore()
 
@@ -159,6 +178,19 @@ const Sidebar: React.FC = () => {
             </select>
           </div>
         </div>
+      </Folder>
+
+      <Folder title="Shark Settings (Permanent)" initialOpen={true}>
+        <Checkbox
+          label="Shark Visible"
+          checked={useSimulationStore((s) => s.sharkVisible)}
+          onChange={(v) => actions.setSharkVisible(v)}
+        />
+        <Checkbox
+          label="Auto Patrol"
+          checked={useSimulationStore((s) => s.sharkPatrol)}
+          onChange={(v) => actions.setSharkPatrol(v)}
+        />
       </Folder>
 
       <Folder title="Environment & Render" initialOpen={false}>
