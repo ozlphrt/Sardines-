@@ -66,15 +66,12 @@ export class UnderwaterEnvironment {
         uniform float uTime;
 
         void main() {
-          // Circular falloff from the center of the cylinder face (UV.x)
-          // Since it's a cylinder, vUv.x goes from 0 to 1 around the circumference
-          // However, for the 'side' view of rays, we use a cosine-based falloff 
-          // to make the edges soft.
+          // Much softer radial falloff using higher power
           float horizontalFalloff = sin(vUv.x * 3.14159);
-          horizontalFalloff = pow(horizontalFalloff, 2.0); // Sharpen the falloff slightly but keep edges soft
+          horizontalFalloff = pow(horizontalFalloff, 6.0); // Increased power for very soft, blurred edges
           
-          // Vertical fade (surface to deep)
-          float vFade = vUv.y; 
+          // Smooth vertical edges: fade out at the very top to avoid sharp surface cut-off
+          float vFade = smoothstep(0.0, 0.1, vUv.y) * smoothstep(1.0, 0.7, vUv.y);
           
           // Pulsing effect
           float pulse = 0.8 + 0.2 * sin(uTime * 0.2 + vUv.x * 10.0);
