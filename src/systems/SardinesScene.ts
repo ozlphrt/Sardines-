@@ -415,7 +415,12 @@ export class SardinesScene {
     // Update flock manager
     if (this.flockManager) {
       let predatorPos: THREE.Vector3 | null = null
-      if (this.sharkRenderer && useSimulationStore.getState().predatorVisible) {
+      const state = useSimulationStore.getState()
+      if (this.sharkRenderer && state.predatorVisible) {
+        // Ctrl+click predator event
+        predatorPos = this.sharkRenderer.getPosition()
+      } else if (this.sharkRenderer && state.sharkVisible) {
+        // Permanent shark patrol — always chase and terrorise sardines
         predatorPos = this.sharkRenderer.getPosition()
       }
       this.flockManager.update(deltaTime, predatorPos)

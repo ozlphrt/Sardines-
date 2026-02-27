@@ -11,6 +11,11 @@ export class SharkRenderer {
     private hasBeenPositioned: boolean = false
     private lerpSpeed: number = 0.03
 
+    // Smooth rotation
+    private currentQuaternion: THREE.Quaternion = new THREE.Quaternion()
+    private targetQuaternion: THREE.Quaternion = new THREE.Quaternion()
+    private rotationLerpSpeed: number = 0.02 // Very slow turn for a big animal
+
     constructor(scene: THREE.Scene) {
         this.scene = scene
         this.loadModel()
@@ -25,7 +30,8 @@ export class SharkRenderer {
             const gltf = await loader.loadAsync(modelPath)
 
             this.model = gltf.scene
-            this.model.scale.set(2.0, 2.0, 2.0)
+            // 5x bigger than previous 2.0 = 10.0
+            this.model.scale.set(10.0, 10.0, 10.0)
             this.model.position.copy(this.targetPosition)
             this.model.visible = this.visible
 
@@ -45,12 +51,10 @@ export class SharkRenderer {
 
             this.scene.add(this.model)
 
-            // Add a bright red wireframe box so the shark's position is always visible
-            const debugBox = new THREE.Mesh(
-                new THREE.BoxGeometry(4, 2, 8),
-                new THREE.MeshBasicMaterial({ color: 0xff2200, wireframe: true })
-            )
-            this.model.add(debugBox)
+            // Initialise current quaternion from the starting rotation
+            this.model.rotation.set(0, 0, 0)
+            this.currentQuaternion.copy(this.model.quaternion)
+            this.targetQuaternion.copy(this.model.quaternion)
 
             // Setup animations
             if (gltf.animations && gltf.animations.length > 0) {
@@ -60,7 +64,7 @@ export class SharkRenderer {
             }
 
             this.isLoaded = true
-            console.log('SharkRenderer: ready. visible=', this.model.visible, 'pos=', this.model.position)
+            console.log('SharkRenderer: ready. scale=10 visible=', this.model.visible)
         } catch (error) {
             console.error('SharkRenderer: Failed to load shark model:', error)
         }
@@ -93,12 +97,22 @@ export class SharkRenderer {
         // Move toward target
         this.model.position.lerp(this.targetPosition, this.lerpSpeed)
 
-        // Face movement direction
-        if (this.model.position.distanceTo(this.targetPosition) > 1.0) {
-            this.model.rotation.set(0, 0, 0)
-            this.model.lookAt(this.targetPosition)
-            this.model.rotateY(Math.PI)
+        // Compute smooth rotation toward movement direction using slerp
+        const moveDelta = this.targetPosition.clone().sub(this.model.position)
+        if (moveDelta.length() > 1.0) {
+            // Build a lookAt matrix for target direction, extract quaternion
+            const lookAtMatrix = new THREE.Matrix4()
+            const up = new THREE.Vector3(0, 1, 0)
+            lookAtMatrix.lookAt(this.model.position, this.targetPosition, up)
+            this.targetQuaternion.setFromRotationMatrix(lookAtMatrix)
+            // Apply the 180° Y correction in quaternion space
+            const correction = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI)
+            this.targetQuaternion.multiply(correction)
         }
+
+        // Slerp current rotation toward target — smooth like a real animal
+        this.currentQuaternion.slerp(this.targetQuaternion, this.rotationLerpSpeed)
+        this.model.quaternion.copy(this.currentQuaternion)
     }
 
     public dispose(): void {
