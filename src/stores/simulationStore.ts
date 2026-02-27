@@ -259,7 +259,7 @@ const defaultPerformance: PerformanceData = {
 }
 
 const defaultCamera: CameraState = {
-  position: { x: 300, y: 100, z: 200 }, // Moved back to see larger area
+  position: { x: 180, y: 60, z: 120 }, // Adjusted for 250 radius swimmable area
   target: { x: 0, y: 0, z: 0 },
 }
 
