@@ -255,6 +255,17 @@ const Sidebar: React.FC = () => {
           min={0} max={50}
           onChange={(v) => actions.updateParameter('behavior', 'preferredDepthBand', v)}
         />
+        <div className="dat-gui-row">
+          <div className="dat-gui-label">Area Box</div>
+          <div className="dat-gui-controller px-2">
+            <input
+              type="checkbox"
+              className="accent-[#2fa1d6]"
+              checked={parameters.walls.showSwimmableArea}
+              onChange={() => actions.updateWallParameter('showSwimmableArea', !parameters.walls.showSwimmableArea)}
+            />
+          </div>
+        </div>
       </Folder>
 
       <Folder title="Behavior Presets" initialOpen={false}>

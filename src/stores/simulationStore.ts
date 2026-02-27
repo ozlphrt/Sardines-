@@ -68,6 +68,7 @@ export interface RenderingParams {
 export interface WallParams {
   showWalls: boolean
   showGridlines: boolean
+  showSwimmableArea: boolean
   wallOpacity: number
   gridlineOpacity: number
   gridSize: number
@@ -222,6 +223,7 @@ const defaultRendering: RenderingParams = {
 const defaultWalls: WallParams = {
   showWalls: false,
   showGridlines: false,
+  showSwimmableArea: false,
   wallOpacity: 0.05, // Almost invisible walls
   gridlineOpacity: 1.0, // Maximum visibility gridlines
   gridSize: 12, // Even denser grid

@@ -29,6 +29,7 @@ export class SardinesScene {
   private underwaterEnvironment: UnderwaterEnvironment | null = null
   // Wall system removed
   private seaFloorModel: SeaFloorModel | null = null
+  private swimmableAreaGroup: THREE.Group | null = null
 
   private isPaused: boolean = false
   private lastTime: number = 0
@@ -221,6 +222,40 @@ export class SardinesScene {
     }
 
     this.flockManager = new FlockManager(config)
+
+    // Add swimmable area helper visualization
+    this.swimmableAreaGroup = new THREE.Group()
+
+    const width = bounds.max.x - bounds.min.x
+    const height = bounds.max.y - bounds.min.y
+    const depth = bounds.max.z - bounds.min.z
+    const geometry = new THREE.BoxGeometry(width, height, depth)
+
+    const center = new THREE.Vector3()
+    bounds.getCenter(center)
+
+    // Wireframe outline
+    const edges = new THREE.EdgesGeometry(geometry)
+    const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x00ffff, opacity: 0.3, transparent: true })
+    const line = new THREE.LineSegments(edges, wireframeMaterial)
+    line.position.copy(center)
+
+    // Light transparent fill
+    const fillMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.02,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    })
+    const fillMesh = new THREE.Mesh(geometry, fillMaterial)
+    fillMesh.position.copy(center)
+
+    this.swimmableAreaGroup.add(line)
+    this.swimmableAreaGroup.add(fillMesh)
+    this.swimmableAreaGroup.visible = storeParams.walls.showSwimmableArea
+
+    this.scene.add(this.swimmableAreaGroup)
   }
 
   private initializeFishRenderer(): void {
@@ -737,7 +772,10 @@ export class SardinesScene {
         }
       }
 
-      // Wall system removed
+      // Update Swimmable Area Box visibility
+      if (this.swimmableAreaGroup && state.parameters.walls.showSwimmableArea !== undefined) {
+        this.swimmableAreaGroup.visible = state.parameters.walls.showSwimmableArea
+      }
     })
   }
 

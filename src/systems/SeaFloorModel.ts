@@ -37,7 +37,9 @@ export class SeaFloorModel {
 
       // Try to load the GLTF model first
       try {
-        const gltf = await this.loader.loadAsync('models/underwater_terrain/scene.gltf')
+        const basePath = (import.meta as any).env.BASE_URL || '/'
+        const modelPath = `${basePath}models/underwater_terrain/scene.gltf`
+        const gltf = await this.loader.loadAsync(modelPath)
         this.model = gltf.scene
         console.log('✅ GLTF sea floor model loaded successfully!')
       } catch (gltfError) {

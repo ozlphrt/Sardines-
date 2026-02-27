@@ -10,12 +10,6 @@ const HUD: React.FC = () => {
     return 'text-danger'
   }
 
-  const getMemoryColor = (memory: number) => {
-    if (memory < 256) return 'text-success'
-    if (memory < 512) return 'text-warning'
-    return 'text-danger'
-  }
-
   return (
     <div className="absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-auto">
       <div className="glass-hud px-4 py-2 flex items-center gap-6 text-sm">

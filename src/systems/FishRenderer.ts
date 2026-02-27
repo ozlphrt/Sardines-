@@ -49,8 +49,9 @@ export class FishRenderer {
       console.log('Loading fish model from:', this.config.modelPath)
       const loader = new GLTFLoader()
 
-      // Add error handling for the loader
-      loader.setPath('/assets/fish-model/')
+      // Use Vite's BASE_URL for correct pathing on GitHub Pages
+      const basePath = (import.meta as any).env.BASE_URL || '/'
+      loader.setPath(`${basePath}assets/fish-model/`)
 
       console.log('Attempting to load scene.gltf...')
       const gltf = await loader.loadAsync('scene.gltf')
