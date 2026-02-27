@@ -271,6 +271,32 @@ export class FlockManager {
   }
 
   /**
+   * Find the most densely populated area for hunting
+   */
+  public getHuntTarget(): THREE.Vector3 | null {
+    if (this.grid.size === 0) return null
+
+    let bestCell: Fish[] | null = null
+    let maxCount = 0
+
+    this.grid.forEach((cell) => {
+      if (cell.length > maxCount) {
+        maxCount = cell.length
+        bestCell = cell
+      }
+    })
+
+    if (!bestCell || bestCell.length === 0) return null
+
+    // Calculate center of this cell
+    const center = new THREE.Vector3()
+    bestCell.forEach(f => center.add(f.physics.position))
+    center.divideScalar(bestCell.length)
+
+    return center
+  }
+
+  /**
    * Clear all fish
    */
   public clearFish(): void {

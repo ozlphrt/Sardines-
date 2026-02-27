@@ -28,7 +28,7 @@ export class SharkRenderer {
             const gltf = await loader.loadAsync(modelPath)
 
             this.model = gltf.scene
-            this.model.scale.set(0.25, 0.25, 0.25) // Reduced scale by 20x as requested
+            this.model.scale.set(0.5, 0.5, 0.5) // Increased scale back up (2x larger than 0.25)
             this.model.visible = false
             this.scene.add(this.model)
 

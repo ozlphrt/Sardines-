@@ -830,8 +830,24 @@ export class Fish {
     if (this.predatorSource) {
       const toPredator = this.predatorSource.clone().sub(position)
       const distToPredator = toPredator.length()
+      const fearRadius = 80.0 // Distance at which fish start to flee
 
-      if (this.state === FishState.BAIT_BALL && distToPredator > 0) {
+      if (distToPredator < fearRadius) {
+        // Always flee when predator is close!
+        toPredator.y *= 0.2 // Escape mostly horizontally
+        if (toPredator.lengthSq() > 0) {
+          toPredator.normalize().negate()
+          // Inverse square fear model: closer predator = much stronger fear
+          const fearStrength = Math.pow((fearRadius - distToPredator) / fearRadius, 2) * this.behavior.compressionStrength * 4.0
+          predatorForce.add(toPredator.multiplyScalar(fearStrength))
+
+          // Also trigger escape mode if very close
+          if (distToPredator < 30.0) {
+            this.state = FishState.BURST
+            this.predatorEventStartTime = performance.now() * 0.001
+          }
+        }
+      } else if (this.state === FishState.BAIT_BALL && distToPredator > 0) {
         toPredator.normalize()
         // Tangent for circling (cross product with Up)
         const up = new THREE.Vector3(0, 1, 0)
@@ -845,13 +861,6 @@ export class Fish {
 
         predatorForce.add(toPredator.clone().multiplyScalar(radialForceStr)) // Pull in / Push out
         predatorForce.add(tangent.multiplyScalar(this.behavior.compressionStrength * 0.5)) // Orbit
-      } else if (this.state === FishState.BURST) {
-        // Phase 1 or Escape Burst: fly away from predator
-        toPredator.y *= 0.2 // Escape mostly horizontally
-        if (toPredator.lengthSq() > 0) {
-          toPredator.normalize().negate()
-          predatorForce.add(toPredator.multiplyScalar(this.behavior.compressionStrength * 2.0))
-        }
       }
     }
 

@@ -41,7 +41,8 @@ export class SardinesScene {
   private cameraLerpFactor: number = 0.02
 
   private frameTimeHistory: number[] = []
-  private sharkAngle: number = 0
+  private lastSharkUpdateTime: number = 0
+  private sharkTarget: THREE.Vector3 | null = null
 
   private raycaster: THREE.Raycaster = new THREE.Raycaster()
   private mouse: THREE.Vector2 = new THREE.Vector2()
@@ -440,13 +441,31 @@ export class SardinesScene {
       this.sharkRenderer.setVisibility(isSharkVisible)
 
       if (state.sharkVisible && !state.predatorVisible && state.sharkPatrol) {
-        // Permanent shark patrol mode
-        this.sharkAngle += deltaTime * 0.15 // Slow circular swimming
-        const radius = 120
-        const x = Math.cos(this.sharkAngle) * radius
-        const z = Math.sin(this.sharkAngle) * radius
-        const y = -10 + Math.sin(this.sharkAngle * 0.5) * 10 // Gentle vertical movement
-        this.sharkRenderer.setPosition(new THREE.Vector3(x, y, z))
+        // PERMANENT SHARK HUNTING/WANDERING MODE
+        // Every ~2 seconds, check for a new "largest school" target
+        const time = performance.now() * 0.001
+        if (time - this.lastSharkUpdateTime > 2.0 && this.flockManager) {
+          const huntTarget = this.flockManager.getHuntTarget()
+          if (huntTarget) {
+            this.sharkTarget = huntTarget
+          } else {
+            // Default to random position if no school found
+            this.sharkTarget = new THREE.Vector3(
+              (Math.random() - 0.5) * 200,
+              -10 + (Math.random() - 0.5) * 40,
+              (Math.random() - 0.5) * 200
+            )
+          }
+          this.lastSharkUpdateTime = time
+        }
+
+        if (this.sharkTarget) {
+          // Move towards target with a bit of organic sway
+          const wanderX = Math.sin(time * 0.5) * 15
+          const wanderY = Math.cos(time * 0.3) * 5
+          const targetWithWander = this.sharkTarget.clone().add(new THREE.Vector3(wanderX, wanderY, 0))
+          this.sharkRenderer.setPosition(targetWithWander)
+        }
       } else if (state.predatorVisible) {
         // Controlled by predator event (mouse click)
         const pos = state.predatorPosition
