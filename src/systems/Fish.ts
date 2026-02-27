@@ -355,6 +355,10 @@ export class Fish {
     const speedRatio = this.movement.speed.currentSpeed / SpeedMode.BURST
     undulation.speedMultiplier = 0.2 + speedRatio * 2.0 // Slows down significantly when not swimming fast
 
+    // Scale amplitude significantly based on speed to prevent excessive wagging when slow
+    const amplitudeScale = 0.2 + speedRatio * 0.8
+    undulation.amplitude = this.behavior.undulationAmplitude * amplitudeScale * 0.5 // Also reduced base amplitude by half
+
     // Update undulation phase
     const effectiveFrequency = undulation.frequency * undulation.speedMultiplier
     undulation.phase += effectiveFrequency * Math.PI * 2 * deltaTime
@@ -992,9 +996,8 @@ export class Fish {
     const heading = this.movement.direction.currentHeading
     this.physics.rotation.y = Math.atan2(heading.x, heading.z)
     this.physics.rotation.z = this.movement.roll.currentAngle
-    const undulationEffect = Math.sin(this.movement.undulation.phase) *
-      this.movement.undulation.amplitude * 0.3
-    this.physics.rotation.y += undulationEffect
+    // Undulation effect is now applied via vertex shader in FishRenderer 
+    // to prevent the entire body from rotating like a solid stick
   }
 
   public getPosition(): THREE.Vector3 { return this.physics.position.clone() }

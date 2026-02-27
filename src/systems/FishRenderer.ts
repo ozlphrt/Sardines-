@@ -150,7 +150,14 @@ export class FishRenderer {
           new Float32Array(this.config.maxFishCount * 3), 3
         )
 
-        console.log('InstancedMesh created for', this.config.maxFishCount, 'fish with instance colors')
+        // Add instance attributes for shader-based swimming animation
+        this.instancedMesh.geometry.setAttribute('instanceWiggle', new THREE.InstancedBufferAttribute(
+          new Float32Array(this.config.maxFishCount), 1
+        ))
+
+        this.setupCustomShader()
+
+        console.log('InstancedMesh created for', this.config.maxFishCount, 'fish with instance colors and wiggle')
       }
 
       // Configure instanced mesh
@@ -208,6 +215,13 @@ export class FishRenderer {
     this.instancedMesh.instanceColor = new THREE.InstancedBufferAttribute(
       new Float32Array(this.config.maxFishCount * 3), 3
     )
+
+    // Add instance attributes for shader-based swimming animation
+    this.instancedMesh.geometry.setAttribute('instanceWiggle', new THREE.InstancedBufferAttribute(
+      new Float32Array(this.config.maxFishCount), 1
+    ))
+
+    this.setupCustomShader()
 
     this.instancedMesh.frustumCulled = this.config.enableFrustumCulling
     this.scene.add(this.instancedMesh)
@@ -292,6 +306,16 @@ export class FishRenderer {
 
         // Set instance color
         this.instancedMesh.setColorAt(renderedCount, this.tempColor)
+
+        // Set shader undulation (wiggle) state
+        const wiggleAttr = this.instancedMesh.geometry.getAttribute('instanceWiggle') as THREE.InstancedBufferAttribute
+        if (wiggleAttr) {
+          const phase = fishInstance.getUndulationPhase()
+          const amplitude = fishInstance.getUndulationAmplitude()
+          // Compute the final wiggle offset for the shader 
+          const wiggle = Math.sin(phase) * amplitude * 0.4
+          wiggleAttr.setX(renderedCount, wiggle)
+        }
       }
 
       renderedCount++
@@ -303,6 +327,10 @@ export class FishRenderer {
       if (this.instancedMesh.instanceColor) {
         this.instancedMesh.instanceColor.needsUpdate = true
       }
+      const wiggleAttr = this.instancedMesh.geometry.getAttribute('instanceWiggle') as THREE.InstancedBufferAttribute
+      if (wiggleAttr) {
+        wiggleAttr.needsUpdate = true
+      }
     }
     this.visibleFishCount = renderedCount
   }
@@ -310,6 +338,31 @@ export class FishRenderer {
     if (this.material && this.material instanceof THREE.MeshStandardMaterial) {
       Object.assign(this.material, properties)
     }
+  }
+
+  /**
+   * Inject procedural vertex bending for swimming animation
+   */
+  private setupCustomShader(): void {
+    if (!this.material) return;
+
+    this.material.onBeforeCompile = (shader) => {
+      shader.vertexShader = `
+        attribute float instanceWiggle;
+        ${shader.vertexShader}
+      `.replace(
+        `#include <begin_vertex>`,
+        `
+        vec3 transformed = vec3( position );
+        
+        // Procedural swimming motion (S-curve bending)
+        // position.z represents the spine of the fish. 
+        // We bend the X axis (left/right) proportionally to Z squared to create an organic tail-swish.
+        float waveIntensity = position.z * abs(position.z) * 0.15;
+        transformed.x += instanceWiggle * waveIntensity;
+        `
+      );
+    };
   }
 
   /**
