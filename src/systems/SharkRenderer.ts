@@ -35,7 +35,7 @@ export class SharkRenderer {
             const gltf = await loader.loadAsync(modelPath)
 
             this.model = gltf.scene
-            this.model.scale.set(10.0, 10.0, 10.0)
+            this.model.scale.set(40.0, 40.0, 40.0)
             this.model.position.copy(this.targetPosition)
             this.model.visible = this.visible
 

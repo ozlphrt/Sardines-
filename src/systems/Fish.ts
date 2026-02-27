@@ -966,8 +966,12 @@ export class Fish {
     const targetVelocity = this.movement.direction.currentHeading.clone()
     targetVelocity.multiplyScalar(this.movement.speed.currentSpeed * this.size.bodyLength)
 
+    // During BURST (flee from shark), suppress vertical component so fish escape horizontally
+    if (this.state === FishState.BURST) {
+      targetVelocity.y *= 0.1
+    }
+
     // Inertia: Smoothly interpolate current velocity towards target
-    // The larger the lerp factor, the quicker the acceleration (less inertia)
     const inertiaSmoothing = this.movement.speed.acceleration * 1.5
     this.physics.velocity.lerp(targetVelocity, Math.min(1.0, inertiaSmoothing * deltaTime))
 
