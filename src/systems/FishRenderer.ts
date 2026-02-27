@@ -356,10 +356,13 @@ export class FishRenderer {
         vec3 transformed = vec3( position );
         
         // Procedural swimming motion (S-curve bending)
-        // position.z represents the spine of the fish. 
-        // We bend the X axis (left/right) proportionally to Z squared to create an organic tail-swish.
-        // Increased intensity significantly to ensure visibility.
-        float waveIntensity = position.z * abs(position.z) * 1.5;
+        // position.z represents the spine. Local Z ~ 0.8 is the head, Z ~ -1.15 is the tail.
+        // We anchor the head by calculating distance from headZ.
+        float headZ = 0.8;
+        float tailWeight = max(0.0, headZ - position.z);
+        
+        // Quadratic weight makes the head stable and the tail very flexible
+        float waveIntensity = tailWeight * tailWeight * 1.8;
         transformed.x += instanceWiggle * waveIntensity;
         `
       );
