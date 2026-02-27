@@ -28,7 +28,7 @@ function App() {
     <div className="relative w-full h-full bg-bg0 overflow-hidden">
       {/* Main 3D Scene */}
       <FlockSimulation />
-      
+
       {/* UI Overlay */}
       <div className="absolute inset-0 pointer-events-none">
         {/* HUD */}
@@ -37,7 +37,7 @@ function App() {
             <HUD />
           </div>
         )}
-        
+
         {/* HUD Hidden Indicator */}
         {!ui.hudVisible && (
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-auto">
@@ -46,13 +46,9 @@ function App() {
             </div>
           </div>
         )}
-        
+
         {/* Sidebar */}
-        {ui.sidebarVisible && (
-          <div className="pointer-events-auto">
-            <Sidebar />
-          </div>
-        )}
+        {ui.sidebarVisible && <Sidebar />}
       </div>
     </div>
   )

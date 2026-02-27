@@ -79,8 +79,8 @@ const HoverDrag: React.FC<HoverDragProps> = ({
 
   return (
     <div className="relative">
-             <div
-         className="flex items-center justify-between py-0.5 px-1 rounded bg-bg1/50 hover:bg-bg1 transition-colors cursor-pointer"
+      <div
+        className="flex items-center justify-between py-0.5 px-1 rounded bg-bg1/50 hover:bg-bg1 transition-colors cursor-pointer overflow-hidden"
         onMouseDown={handleMouseDown}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
@@ -95,7 +95,13 @@ const HoverDrag: React.FC<HoverDragProps> = ({
         aria-valuenow={value || 0}
         aria-valuetext={formatValue(value)}
       >
-        <div className="flex-1">
+        {/* Progress Background */}
+        <div
+          className="absolute inset-y-0 left-0 bg-accent/10 pointer-events-none transition-all duration-300"
+          style={{ width: `${((value - min) / (max - min)) * 100}%` }}
+        />
+
+        <div className="flex-1 z-10">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-text">{label}</span>
             <span className="text-sm font-mono text-accent">{formatValue(value)}</span>
@@ -104,7 +110,7 @@ const HoverDrag: React.FC<HoverDragProps> = ({
 
         {/* Drag indicator */}
         {isHovering && (
-          <div className="ml-2 text-xs text-muted">
+          <div className="ml-2 text-xs text-muted z-10">
             {isDragging ? '↕' : '↕'}
           </div>
         )}

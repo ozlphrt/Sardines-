@@ -10,27 +10,43 @@ export interface BehaviorParams {
   neighborRadius: number
   separationRadius: number
   collisionRadius: number
-  
+
   // Force balancing
   individualWeight: number
   socialWeight: number
-  
+
   // Core movement parameters
   bodyLength: number
   maxTurnRate: number
   maxRollAngle: number
   rollSpeed: number
-  
+
   // Undulation parameters
   undulationFrequency: number
   undulationAmplitude: number
-  
+
   // Speed parameters
   accelerationRate: number
-  
+
   // Direction change parameters
   directionChangeInterval: number
   turnSmoothness: number
+
+  // Elasticity
+  waveDelayFactor: number
+  clusterBias: number
+  edgeSpeedMultiplier: number
+
+  // Predator
+  burstMultiplier: number
+  compressionStrength: number
+  baitBallDuration: number
+  recoveryDuration: number
+
+  // Environment
+  seabedAvoidanceStrength: number
+  obstacleLookAheadDistance: number
+  preferredDepthBand: number
 }
 
 export interface PhysicsParams {
@@ -43,6 +59,10 @@ export interface RenderingParams {
   fishCount: number
   modelScale: number
   lightingIntensity: number
+  metalness: number
+  roughness: number
+  envMapIntensity: number
+  emissiveIntensity: number
 }
 
 export interface WallParams {
@@ -99,7 +119,7 @@ export interface UIState {
 export interface SimulationStore {
   // UI state
   ui: UIState
-  
+
   // Simulation parameters
   parameters: {
     behavior: BehaviorParams
@@ -108,13 +128,13 @@ export interface SimulationStore {
     walls: WallParams
     seaFloor: SeaFloorParams
   }
-  
+
   // Performance data
   performance: PerformanceData
-  
+
   // Camera state
   camera: CameraState
-  
+
   // Actions
   actions: {
     updateParameter: (category: keyof SimulationStore['parameters'], param: string, value: number) => void
@@ -138,45 +158,65 @@ export interface SimulationStore {
 // Default values - Updated for Phase 1 + Flocking system
 const defaultBehavior: BehaviorParams = {
   // Flocking parameters
-  cohesionStrength: 0.4,
-  separationStrength: 0.8,
-  alignmentStrength: 0.6,
-  neighborRadius: 25.0,
-  separationRadius: 8.0,
-  collisionRadius: 4.0, // Half of separation radius for emergency avoidance
-  
+  cohesionStrength: 0.9,
+  separationStrength: 2.5,
+  alignmentStrength: 0.7,
+  neighborRadius: 60.0,
+  separationRadius: 20.0,
+  collisionRadius: 8.0,
+
   // Force balancing
-  individualWeight: 0.6,
-  socialWeight: 0.4,
-  
+  individualWeight: 0.1, // Stronger social following
+  socialWeight: 0.9,
+
   // Core movement parameters
-  bodyLength: 3.0,
-  maxTurnRate: 1.57,
-  maxRollAngle: 0.52,
-  rollSpeed: 3.0,
-  
+  bodyLength: 5.0, // Bigger fish for better visibility
+  maxTurnRate: 2.5, // Much faster turning
+  maxRollAngle: 0.6,
+  rollSpeed: 5.0,
+
   // Undulation parameters
-  undulationFrequency: 3.0,
-  undulationAmplitude: 0.2,
-  
+  undulationFrequency: 4.5,
+  undulationAmplitude: 0.3,
+
   // Speed parameters
-  accelerationRate: 2.5,
-  
+  accelerationRate: 8.0, // Very snappy speed changes
+
   // Direction change parameters
-  directionChangeInterval: 4.0,
-  turnSmoothness: 0.8,
+  directionChangeInterval: 12.0, // Very infrequent changes, travel further
+  turnSmoothness: 0.98, // Very smooth transitions
+
+  // Elasticity
+  waveDelayFactor: 0.2,
+  clusterBias: 0.8,
+  edgeSpeedMultiplier: 1.15,
+
+  // Predator
+  burstMultiplier: 3.5,
+  compressionStrength: 5.0,
+  baitBallDuration: 3000,
+  recoveryDuration: 6000,
+
+  // Environment
+  seabedAvoidanceStrength: 2.5,
+  obstacleLookAheadDistance: 40.0,
+  preferredDepthBand: 50.0
 }
 
 const defaultPhysics: PhysicsParams = {
-  maxSpeed: 40, // Updated for smaller space
-  maxForce: 10, // Updated for smaller space
-  maxAcceleration: 15, // Updated for smaller space
+  maxSpeed: 80, // Doubled speed
+  maxForce: 20, // Doubled force
+  maxAcceleration: 30, // Doubled acceleration
 }
 
 const defaultRendering: RenderingParams = {
-  fishCount: 1000,
-  modelScale: 1,
-  lightingIntensity: 1,
+  fishCount: 500,
+  modelScale: 3.2,
+  lightingIntensity: 2.1,
+  metalness: 0.9,
+  roughness: 0.4, // Smoothness 0.60
+  envMapIntensity: 1.0,
+  emissiveIntensity: 0.0,
 }
 
 const defaultWalls: WallParams = {
@@ -193,11 +233,11 @@ const defaultWalls: WallParams = {
 
 const defaultSeaFloor: SeaFloorParams = {
   enabled: true,
-  scale: 10.0, // Large scale to cover entire ocean bottom
+  scale: 60.0, // 2x increase from 30.0
   positionX: 0,
-  positionY: -20,
+  positionY: -40,
   positionZ: 0,
-  rotationX: 0,
+  rotationX: 0, // Rotated 90 deg from previous -1.570796
   rotationY: 0,
   rotationZ: 0,
   receiveShadows: true,
@@ -235,7 +275,7 @@ export const useSimulationStore = create<SimulationStore>()(
   persist(
     (set, _get) => ({
       ui: defaultUI,
-      
+
       parameters: {
         behavior: defaultBehavior,
         physics: defaultPhysics,
@@ -243,11 +283,11 @@ export const useSimulationStore = create<SimulationStore>()(
         walls: defaultWalls,
         seaFloor: defaultSeaFloor,
       },
-      
+
       performance: defaultPerformance,
-      
+
       camera: defaultCamera,
-      
+
       actions: {
         updateParameter: (category, param, value) => {
           set((state) => ({
@@ -260,7 +300,7 @@ export const useSimulationStore = create<SimulationStore>()(
             },
           }))
         },
-        
+
         togglePause: () => {
           set((state) => ({
             performance: {
@@ -269,7 +309,7 @@ export const useSimulationStore = create<SimulationStore>()(
             },
           }))
         },
-        
+
         resetSimulation: () => {
           set((state) => ({
             parameters: {
@@ -289,121 +329,137 @@ export const useSimulationStore = create<SimulationStore>()(
             },
           }))
         },
-        
+
         loadPreset: (preset) => {
           // Preset configurations for Phase 1 + Flocking
           const presets = {
             calm: {
-              behavior: { 
-                ...defaultBehavior, 
-                cohesionStrength: 0.3, 
-                separationStrength: 0.6, 
+              behavior: {
+                ...defaultBehavior,
+                cohesionStrength: 0.3,
+                separationStrength: 0.6,
                 alignmentStrength: 0.4,
                 socialWeight: 0.3,
-                individualWeight: 0.7
+                individualWeight: 0.7,
+                waveDelayFactor: 0.1,
+                clusterBias: 0.2
               },
               physics: { ...defaultPhysics, maxSpeed: 30 },
               rendering: { ...defaultRendering, fishCount: 200 },
             },
             tight: {
-              behavior: { 
-                ...defaultBehavior, 
-                cohesionStrength: 0.8, 
-                separationStrength: 0.4, 
+              behavior: {
+                ...defaultBehavior,
+                cohesionStrength: 0.8,
+                separationStrength: 0.4,
                 alignmentStrength: 0.9,
                 socialWeight: 0.7,
                 individualWeight: 0.3,
                 separationRadius: 6.0,
-                collisionRadius: 2.5 // Smaller for tight formation
+                collisionRadius: 2.5, // Smaller for tight formation
+                waveDelayFactor: 0.8,
+                clusterBias: 0.9
               },
               physics: { ...defaultPhysics, maxSpeed: 50 },
               rendering: { ...defaultRendering, fishCount: 250 },
             },
             scattered: {
-              behavior: { 
-                ...defaultBehavior, 
-                cohesionStrength: 0.2, 
-                separationStrength: 1.2, 
+              behavior: {
+                ...defaultBehavior,
+                cohesionStrength: 0.2,
+                separationStrength: 1.2,
                 alignmentStrength: 0.3,
                 socialWeight: 0.2,
                 individualWeight: 0.8,
                 neighborRadius: 15.0,
                 separationRadius: 12.0,
-                collisionRadius: 6.0 // Larger for scattered behavior
+                collisionRadius: 6.0, // Larger for scattered behavior
+                waveDelayFactor: 0.0,
+                clusterBias: 0.0
               },
               physics: { ...defaultPhysics, maxSpeed: 80 },
               rendering: { ...defaultRendering, fishCount: 150 },
             },
             aggressive: {
-              behavior: { 
-                ...defaultBehavior, 
-                cohesionStrength: 0.6, 
-                separationStrength: 0.3, 
+              behavior: {
+                ...defaultBehavior,
+                cohesionStrength: 0.6,
+                separationStrength: 0.3,
                 alignmentStrength: 1.0,
                 socialWeight: 0.8,
                 individualWeight: 0.2,
                 maxTurnRate: 2.0,
-                accelerationRate: 4.0
+                accelerationRate: 4.0,
+                waveDelayFactor: 0.3,
+                clusterBias: 0.6
               },
               physics: { ...defaultPhysics, maxSpeed: 60, maxForce: 15 },
               rendering: { ...defaultRendering, fishCount: 200 },
             },
             gentle: {
-              behavior: { 
-                ...defaultBehavior, 
-                cohesionStrength: 0.5, 
-                separationStrength: 0.9, 
+              behavior: {
+                ...defaultBehavior,
+                cohesionStrength: 0.5,
+                separationStrength: 0.9,
                 alignmentStrength: 0.7,
                 socialWeight: 0.4,
                 individualWeight: 0.6,
                 maxTurnRate: 1.0,
-                accelerationRate: 1.5
+                accelerationRate: 1.5,
+                waveDelayFactor: 0.6,
+                clusterBias: 0.4
               },
               physics: { ...defaultPhysics, maxSpeed: 25, maxForce: 8 },
               rendering: { ...defaultRendering, fishCount: 180 },
             },
             chaotic: {
-              behavior: { 
-                ...defaultBehavior, 
-                cohesionStrength: 0.1, 
-                separationStrength: 1.5, 
+              behavior: {
+                ...defaultBehavior,
+                cohesionStrength: 0.1,
+                separationStrength: 1.5,
                 alignmentStrength: 0.2,
                 socialWeight: 0.1,
                 individualWeight: 0.9,
                 directionChangeInterval: 2.0,
-                maxTurnRate: 2.5
+                maxTurnRate: 2.5,
+                waveDelayFactor: 0.0,
+                clusterBias: 0.1
               },
               physics: { ...defaultPhysics, maxSpeed: 70, maxForce: 20 },
               rendering: { ...defaultRendering, fishCount: 120 },
             },
             organized: {
-              behavior: { 
-                ...defaultBehavior, 
-                cohesionStrength: 0.7, 
-                separationStrength: 0.6, 
+              behavior: {
+                ...defaultBehavior,
+                cohesionStrength: 0.7,
+                separationStrength: 0.6,
                 alignmentStrength: 1.0,
                 socialWeight: 0.8,
                 individualWeight: 0.2,
                 neighborRadius: 30.0,
-                turnSmoothness: 0.9
+                turnSmoothness: 0.9,
+                waveDelayFactor: 0.5,
+                clusterBias: 0.7
               },
               physics: { ...defaultPhysics, maxSpeed: 45, maxForce: 12 },
               rendering: { ...defaultRendering, fishCount: 220 },
             },
             minimal: {
-              behavior: { 
-                ...defaultBehavior, 
-                cohesionStrength: 0.6, 
-                separationStrength: 1.0, 
+              behavior: {
+                ...defaultBehavior,
+                cohesionStrength: 0.6,
+                separationStrength: 1.0,
                 alignmentStrength: 0.5,
                 socialWeight: 0.5,
-                individualWeight: 0.5
+                individualWeight: 0.5,
+                waveDelayFactor: 0.2,
+                clusterBias: 0.3
               },
               physics: { ...defaultPhysics, maxSpeed: 35, maxForce: 9 },
               rendering: { ...defaultRendering, fishCount: 100 },
             },
           }
-          
+
           const selectedPreset = presets[preset as keyof typeof presets]
           if (selectedPreset) {
             set((state) => ({
@@ -423,7 +479,7 @@ export const useSimulationStore = create<SimulationStore>()(
             }))
           }
         },
-        
+
         loadCameraPreset: (preset) => {
           // Camera preset configurations
           const cameraPresets = {
@@ -434,7 +490,7 @@ export const useSimulationStore = create<SimulationStore>()(
             follow: { position: { x: 0, y: 40, z: 80 }, target: { x: 0, y: 0, z: 0 } },
             'single-fish': { position: { x: 0, y: 60, z: 150 }, target: { x: 0, y: 0, z: 0 } },
           }
-          
+
           const selectedCameraPreset = cameraPresets[preset as keyof typeof cameraPresets]
           if (selectedCameraPreset) {
             set((_state) => ({
@@ -444,7 +500,7 @@ export const useSimulationStore = create<SimulationStore>()(
                 selectedCameraPreset: preset,
               },
             }))
-            
+
             // Set camera mode based on preset
             if (preset === 'single-fish') {
               // This will be handled by the scene when it detects the preset
@@ -452,13 +508,13 @@ export const useSimulationStore = create<SimulationStore>()(
             }
           }
         },
-        
+
         updateCamera: (camera) => {
           set((_state) => ({
             camera,
           }))
         },
-        
+
         toggleSidebar: () => {
           set((state) => ({
             ui: {
@@ -467,7 +523,7 @@ export const useSimulationStore = create<SimulationStore>()(
             },
           }))
         },
-        
+
         toggleHUD: () => {
           set((state) => ({
             ui: {
@@ -476,7 +532,7 @@ export const useSimulationStore = create<SimulationStore>()(
             },
           }))
         },
-        
+
         setActiveSection: (section) => {
           set((state) => ({
             ui: {
@@ -485,7 +541,7 @@ export const useSimulationStore = create<SimulationStore>()(
             },
           }))
         },
-        
+
         updatePerformance: (data) => {
           set((state) => ({
             performance: {
@@ -494,7 +550,7 @@ export const useSimulationStore = create<SimulationStore>()(
             },
           }))
         },
-        
+
         toggleWalls: () => {
           set((state) => ({
             parameters: {
@@ -506,7 +562,7 @@ export const useSimulationStore = create<SimulationStore>()(
             },
           }))
         },
-        
+
         toggleGridlines: () => {
           set((state) => ({
             parameters: {
@@ -518,7 +574,7 @@ export const useSimulationStore = create<SimulationStore>()(
             },
           }))
         },
-        
+
         updateWallParameter: (param, value) => {
           set((state) => ({
             parameters: {
@@ -530,7 +586,7 @@ export const useSimulationStore = create<SimulationStore>()(
             },
           }))
         },
-        
+
         toggleSeaFloor: () => {
           set((state) => ({
             parameters: {
@@ -542,7 +598,7 @@ export const useSimulationStore = create<SimulationStore>()(
             },
           }))
         },
-        
+
         updateSeaFloorParameter: (param, value) => {
           set((state) => ({
             parameters: {
@@ -563,28 +619,14 @@ export const useSimulationStore = create<SimulationStore>()(
         ui: state.ui,
       }),
       onRehydrateStorage: () => (state) => {
-        // Migrate old store data to new Phase 1 + Flocking parameters
-        if (state && state.parameters) {
-          // Migrate behavior parameters
-          if (state.parameters.behavior) {
-            const behavior = state.parameters.behavior
-            
-            // Migrate to new parameter structure if needed
-            if (behavior.neighborRadius === undefined) {
-              // Reset to default behavior for major structure change
-              state.parameters.behavior = defaultBehavior
-            }
-          }
-          
-          // Migrate wall parameters - add if missing
-          if (!state.parameters.walls) {
-            state.parameters.walls = defaultWalls
-          }
-          
-          // Migrate sea floor parameters - add if missing
-          if (!state.parameters.seaFloor) {
-            state.parameters.seaFloor = defaultSeaFloor
-          }
+        // ABSOLUTE FORCED RESET for major coordination fix
+        if (state) {
+          state.parameters.behavior = { ...defaultBehavior }
+          state.parameters.seaFloor = { ...defaultSeaFloor }
+          state.parameters.rendering = { ...defaultRendering }
+          state.parameters.physics = { ...defaultPhysics }
+          state.ui.sidebarVisible = true // Always show sidebar on load
+          console.log('🔄 FINAL COORDINATION RESET APPLIED')
         }
       },
     }

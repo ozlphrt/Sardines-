@@ -35,46 +35,11 @@ const HUD: React.FC = () => {
           </span>
         </div>
 
-        {/* Visible Fish Count */}
-        <div className="flex items-center gap-2">
-          <span className="text-muted">Visible</span>
-          <span className="font-mono font-semibold text-text">
-            {performance.visibleFish || performance.fishCount}
-          </span>
-        </div>
-
-        {/* Memory Usage */}
-        <div className="flex items-center gap-2">
-          <span className="text-muted">Memory</span>
-          <span className={`font-mono font-semibold ${getMemoryColor(performance.memoryUsage)}`}>
-            {performance.memoryUsage.toFixed(0)}MB
-          </span>
-        </div>
-
         {/* Pause/Play Status */}
         <div className="flex items-center gap-2">
           <span className="text-muted">Status</span>
           <span className={`font-semibold ${performance.isPaused ? 'text-warning' : 'text-success'}`}>
             {performance.isPaused ? 'PAUSED' : 'RUNNING'}
-          </span>
-        </div>
-
-        {/* Average Speed */}
-        <div className="flex items-center gap-2">
-          <span className="text-muted">Speed</span>
-          <span className="font-mono font-semibold text-text">
-            {performance.averageSpeed.toFixed(1)}
-          </span>
-        </div>
-
-        {/* Size Variation */}
-        <div className="flex items-center gap-2">
-          <span className="text-muted">Size</span>
-          <span className="font-mono font-semibold text-text">
-            {performance.averageSize.toFixed(2)}
-          </span>
-          <span className="text-xs text-muted">
-            ({performance.sizeRange.min.toFixed(1)}-{performance.sizeRange.max.toFixed(1)})
           </span>
         </div>
 

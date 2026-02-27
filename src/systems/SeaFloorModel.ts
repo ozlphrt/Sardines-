@@ -34,7 +34,7 @@ export class SeaFloorModel {
 
     try {
       console.log('🌊 Loading external sea floor GLTF model...')
-      
+
       // Try to load the GLTF model first
       try {
         const gltf = await this.loader.loadAsync('models/underwater_terrain/scene.gltf')
@@ -42,23 +42,23 @@ export class SeaFloorModel {
         console.log('✅ GLTF sea floor model loaded successfully!')
       } catch (gltfError) {
         console.warn('⚠️ GLTF model failed to load, creating fallback plane:', gltfError)
-        
-        // Create a fallback plane geometry
-        const geometry = new THREE.PlaneGeometry(200, 200, 20, 20)
-        const material = new THREE.MeshLambertMaterial({ 
+
+        // Create a fallback plane geometry (large enough for the whole area)
+        const geometry = new THREE.PlaneGeometry(2000, 2000, 2, 2)
+        const material = new THREE.MeshLambertMaterial({
           color: 0x8B4513, // Sandy brown color
-          side: THREE.DoubleSide 
+          side: THREE.DoubleSide
         })
         this.model = new THREE.Mesh(geometry, material)
-        console.log('✅ Fallback sea floor plane created!')
+        console.log('✅ Fallback sea floor plane created (2000x2000)!')
       }
-      
+
       // Apply configuration
       if (this.model) {
         this.model.scale.setScalar(this.config.scale)
         this.model.position.copy(this.config.position)
         this.model.rotation.copy(this.config.rotation)
-        
+
         // Configure shadows
         this.model.traverse((child) => {
           if (child instanceof THREE.Mesh) {
@@ -66,10 +66,10 @@ export class SeaFloorModel {
             child.castShadow = this.config.castShadows
           }
         })
-        
+
         // Add to scene
         this.scene.add(this.model)
-        
+
         console.log('✅ Sea floor model loaded successfully!')
         console.log('📊 Model info:', {
           children: this.model.children.length,
@@ -79,7 +79,7 @@ export class SeaFloorModel {
         })
       }
       console.log('🌊 Sea floor scaled to:', this.config.scale, 'x (ocean bottom coverage)')
-      
+
     } catch (error) {
       this.loadError = error instanceof Error ? error.message : 'Unknown error'
       console.error('❌ Failed to load sea floor model:', this.loadError)
@@ -90,12 +90,12 @@ export class SeaFloorModel {
 
   public updateConfig(newConfig: Partial<SeaFloorConfig>): void {
     this.config = { ...this.config, ...newConfig }
-    
+
     if (this.model) {
-      this.model.scale.setScalar(this.config.scale)
-      this.model.position.copy(this.config.position)
-      this.model.rotation.copy(this.config.rotation)
-      
+      if (newConfig.scale !== undefined) this.model.scale.setScalar(this.config.scale)
+      if (newConfig.position !== undefined) this.model.position.copy(this.config.position)
+      if (newConfig.rotation !== undefined) this.model.rotation.copy(this.config.rotation)
+
       this.model.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           child.receiveShadow = this.config.receiveShadows
@@ -125,7 +125,7 @@ export class SeaFloorModel {
     if (this.model) {
       // Remove from scene
       this.scene.remove(this.model)
-      
+
       // Dispose of geometries and materials
       this.model.traverse((child) => {
         if (child instanceof THREE.Mesh) {
@@ -137,10 +137,10 @@ export class SeaFloorModel {
           }
         }
       })
-      
+
       this.model = null
     }
-    
+
     this.isLoading = false
     this.loadError = null
   }

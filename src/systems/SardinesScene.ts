@@ -29,7 +29,7 @@ export class SardinesScene {
   private underwaterEnvironment: UnderwaterEnvironment | null = null
   // Wall system removed
   private seaFloorModel: SeaFloorModel | null = null
-  
+
   private isPaused: boolean = false
   private lastTime: number = 0
   private currentCameraMode: string = 'default'
@@ -39,10 +39,13 @@ export class SardinesScene {
 
   private frameTimeHistory: number[] = []
 
+  private raycaster: THREE.Raycaster = new THREE.Raycaster()
+  private mouse: THREE.Vector2 = new THREE.Vector2()
+
   constructor(container: HTMLElement) {
     // Scene initialization
     this.scene = new THREE.Scene()
-    
+
     // Camera setup
     this.camera = new THREE.PerspectiveCamera(
       75, // FOV
@@ -51,7 +54,7 @@ export class SardinesScene {
       2000 // Far plane
     )
     this.camera.position.set(0, 5, 40) // Higher camera position to see sand floor clearly
-    
+
     // Renderer configuration
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -61,90 +64,115 @@ export class SardinesScene {
     this.renderer.setSize(container.clientWidth, container.clientHeight)
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.shadowMap.enabled = false // Disable shadows to avoid shader issues
-    
+
     // Controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.enableDamping = true
     this.controls.dampingFactor = 0.05
     this.controls.maxDistance = 200
     this.controls.minDistance = 5
-    
+
     // Allow looking down to see the floor
     this.controls.maxPolarAngle = Math.PI // Allow full 180 degree rotation
     this.controls.minPolarAngle = 0 // Allow looking straight up
-    
 
-    
+
+
     // Add to container
     container.appendChild(this.renderer.domElement)
-    
+
     // Setup lighting
     this.setupLighting()
-    
+
     // Setup environment
     this.setupEnvironment()
-    
+
     // Handle window resize
     window.addEventListener('resize', this.handleResize.bind(this))
-    
+
     // Initialize flock manager
     this.initializeFlockManager()
-    
+
     // Initialize fish renderer
     this.initializeFishRenderer()
-    
+
     // Initialize underwater environment
     this.initializeUnderwaterEnvironment()
-    
+
+    // Setup click listener for predator event
+    window.addEventListener('click', this.onClick.bind(this))
+
     // Wall system removed - no walls or grids
-    
+
     // Initialize sea floor model
     this.initializeSeaFloorModel()
-    
+
     // Subscribe to store changes for live parameter updates
     this.subscribeToStoreChanges()
-    
+
     // Subscribe to sea floor parameter changes
     this.subscribeToSeaFloorChanges()
+  }
+
+  private onClick(event: MouseEvent): void {
+    if (!this.flockManager) return
+
+    // Calculate mouse position in normalized device coordinates
+    this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1
+    this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+
+    this.raycaster.setFromCamera(this.mouse, this.camera)
+
+    // Intersect with a horizontal plane at Y=0 (mid-water)
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+    const target = new THREE.Vector3()
+
+    this.raycaster.ray.intersectPlane(plane, target)
+
+    if (target) {
+      this.flockManager.triggerPredator(target)
+    }
   }
 
   private setupLighting(): void {
     // Enhanced underwater lighting for realistic sardine visibility and sand floor
     const ambientLight = new THREE.AmbientLight(0x87CEEB, 0.8) // Brighter sky blue ambient for underwater feel
     this.scene.add(ambientLight)
-    
-    // Main directional light (sunlight through water) - ENHANCED for maximum brightness
-    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1.2) // Significantly increased intensity for brighter sardines
+
+    // Main directional light (sunlight through water)
+    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1.2)
+    directionalLight.name = 'mainLight'
     directionalLight.position.set(50, 200, 50)
-    directionalLight.castShadow = false // Disable shadows for performance
+    directionalLight.castShadow = false
     this.scene.add(directionalLight)
-    
-    // Secondary fill light for better metallic highlights
-    const fillLight = new THREE.DirectionalLight(0x87CEEB, 0.5) // Enhanced blue fill light
+
+    // Secondary fill light
+    const fillLight = new THREE.DirectionalLight(0x87CEEB, 0.5)
+    fillLight.name = 'fillLight'
     fillLight.position.set(-50, 100, -50)
     this.scene.add(fillLight)
-    
+
     // Additional light to enhance sardine metallic shine - ENHANCED for maximum metallic impact
     const shineLight = new THREE.DirectionalLight(0xE6F3FF, 0.7) // Increased intensity for dramatic metallic highlights
     shineLight.position.set(100, 0, 0) // Side lighting for metallic highlights
     this.scene.add(shineLight)
-    
+
     // Enhanced bottom light for better sand floor visibility
     const bottomLight = new THREE.DirectionalLight(0xFFFACD, 0.8) // Brighter warm light
     bottomLight.position.set(0, 50, 0) // Much closer to illuminate floor better
-    bottomLight.target.position.set(0, -25, 0) // Target the new sand floor position
+    bottomLight.target.position.set(0, -45, 0) // Target the deeper sand floor
     this.scene.add(bottomLight)
     this.scene.add(bottomLight.target)
-    
+
     // Additional point light near the floor for sand texture visibility
     const floorLight = new THREE.PointLight(0xFFFFE0, 0.6, 150) // Bright light yellow
-    floorLight.position.set(0, -15, 0) // Much closer to the sand floor
+    floorLight.position.set(0, -35, 0) // Near the deeper sand floor
     this.scene.add(floorLight)
-    
+
     // Extra spotlight directly on the floor for maximum visibility
     const spotLight = new THREE.SpotLight(0xFFFFFF, 1.0, 100, Math.PI / 6, 0.5)
-    spotLight.position.set(0, -10, 0)
-    spotLight.target.position.set(0, -25, 0)
+    spotLight.position.set(0, -30, 0)
+    spotLight.target.position.set(0, -45, 0)
     this.scene.add(spotLight)
     this.scene.add(spotLight.target)
 
@@ -152,24 +180,24 @@ export class SardinesScene {
     const sandLight = new THREE.PointLight(0xFFF8DC, 2.5, 300) // Cornsilk color, ultra bright
     sandLight.position.set(0, -12, 0) // Close to sand floor at Y = -15
     this.scene.add(sandLight)
-    
+
     // Add multiple sand lights for complete coverage
     const sandLight2 = new THREE.PointLight(0xF4E4BC, 2.0, 250) // Sandy beige matching floor
     sandLight2.position.set(40, -10, 0) // Right side coverage
     this.scene.add(sandLight2)
-    
+
     const sandLight3 = new THREE.PointLight(0xF4E4BC, 2.0, 250) // Sandy beige matching floor  
     sandLight3.position.set(-40, -10, 0) // Left side coverage
     this.scene.add(sandLight3)
-    
+
     const sandLight4 = new THREE.PointLight(0xF4E4BC, 2.0, 250) // Sandy beige matching floor
     sandLight4.position.set(0, -10, 40) // Front coverage
     this.scene.add(sandLight4)
-    
+
     const sandLight5 = new THREE.PointLight(0xF4E4BC, 2.0, 250) // Sandy beige matching floor
     sandLight5.position.set(0, -10, -40) // Back coverage  
     this.scene.add(sandLight5)
-    
+
     console.log('Enhanced lighting setup for realistic sardine appearance and sand floor visibility')
   }
 
@@ -178,49 +206,20 @@ export class SardinesScene {
       new THREE.Vector3(-100, -40, -100), // Larger swimming area
       new THREE.Vector3(100, 40, 100)
     )
-    
-    const defaultBehavior: FishBehavior = {
-      // Phase 1 - Core movement parameters
-      bodyLength: 3.0,              // Fish body length in world units
-      maxTurnRate: 1.57,            // 90°/s maximum turn rate
-      maxRollAngle: 0.52,           // 30° maximum roll angle
-      rollSpeed: 3.0,               // 3 rad/s roll speed
-      
-      // Undulation parameters
-      undulationFrequency: 3.0,     // 3 Hz base frequency
-      undulationAmplitude: 0.2,     // 0.2 body length amplitude
-      
-      // Speed parameters
-      accelerationRate: 2.5,        // 2.5 BL/s² acceleration
-      
-      // Direction change parameters
-      directionChangeInterval: 4.0, // 4 seconds between changes
-      turnSmoothness: 0.8,          // 0.8 smoothness factor
-      
-      // Flocking parameters
-      neighborRadius: 25.0,         // Detection radius for neighbors
-      separationRadius: 8.0,        // Minimum distance to maintain
-      collisionRadius: 4.0,         // Emergency collision avoidance radius
-      cohesionStrength: 0.4,        // Attraction to group center
-      separationStrength: 0.8,      // Avoidance of crowding
-      alignmentStrength: 0.6,       // Velocity matching strength
-      
-      // Force balancing
-      individualWeight: 0.6,        // Weight of individual behavior
-      socialWeight: 0.4             // Weight of flocking behavior
-    }
-    
-    // Get initial fish count from store
-    const initialFishCount = useSimulationStore.getState().parameters.rendering.fishCount
-    
+
+    // Get initial behavior from store instead of hardcoding
+    const storeParams = useSimulationStore.getState().parameters
+    const initialBehavior = storeParams.behavior
+    const initialFishCount = storeParams.rendering.fishCount
+
     const config: FlockConfig = {
       fishCount: initialFishCount, // Use fish count from UI store
       bounds,
-      behavior: defaultBehavior,
+      behavior: { ...initialBehavior },
       spatialPartitioning: true,
       partitionSize: 80 // Smaller partitions for smaller space
     }
-    
+
     this.flockManager = new FlockManager(config)
   }
 
@@ -234,14 +233,14 @@ export class SardinesScene {
       enableLOD: true, // Enable Level of Detail for distant fish
       lodDistance: 200 // Reduced LOD distance for better performance
     }
-    
+
     console.log('Initializing FishRenderer with config:', config)
     this.fishRenderer = new FishRenderer(this.scene, config)
-    
+
     // Set camera reference for frustum culling
     if (this.fishRenderer) {
       this.fishRenderer.setCamera(this.camera)
-      
+
       // Wait for model to load and optimize textures
       setTimeout(() => {
         if (this.fishRenderer && this.fishRenderer.isLoaded()) {
@@ -263,20 +262,41 @@ export class SardinesScene {
       seaweedCount: 20, // Reduced from 30
       planktonCount: 30 // Reduced from 50
     }
-    
+
     this.underwaterEnvironment = new UnderwaterEnvironment(this.scene, config)
   }
 
   private setupEnvironment(): void {
     // Natural underwater background color
     this.scene.background = new THREE.Color(0x1B4F72) // Deep blue water
-    
-    // Reduce fog to see floor better
-    this.scene.fog = new THREE.Fog(0x1B4F72, 200, 600) // Fog starts much farther, less interference
-    
+
+    // Create a procedural high-quality environment map
+    const pmremGenerator = new THREE.PMREMGenerator(this.renderer)
+    pmremGenerator.compileEquirectangularShader()
+
+    // Create a procedural "sky" texture
+    const canvas = document.createElement('canvas')
+    canvas.width = 128
+    canvas.height = 64
+    const context = canvas.getContext('2d')
+    if (context) {
+      const gradient = context.createLinearGradient(0, 0, 0, 64)
+      gradient.addColorStop(0, '#ffffff')   // Bright surface
+      gradient.addColorStop(0.5, '#4facfe') // Mid blue
+      gradient.addColorStop(1, '#1a3d5c')   // Dark deep
+      context.fillStyle = gradient
+      context.fillRect(0, 0, 128, 64)
+    }
+    const texture = new THREE.CanvasTexture(canvas)
+    texture.mapping = THREE.EquirectangularReflectionMapping
+
+    this.scene.environment = pmremGenerator.fromEquirectangular(texture).texture
+
+    // Reduce fog
+    this.scene.fog = new THREE.Fog(0x1B4F72, 200, 800)
+
     // CRITICAL: Initialize the underwater environment (including sand floor)
     this.initializeUnderwaterEnvironment()
-
   }
 
   // Wall system removed - no walls or grids
@@ -284,7 +304,7 @@ export class SardinesScene {
   private initializeSeaFloorModel(): void {
     const store = useSimulationStore.getState()
     const seaFloorParams = store.parameters.seaFloor
-    
+
     const seaFloorConfig: SeaFloorConfig = {
       enabled: seaFloorParams.enabled,
       scale: seaFloorParams.scale,
@@ -293,9 +313,9 @@ export class SardinesScene {
       receiveShadows: seaFloorParams.receiveShadows,
       castShadows: seaFloorParams.castShadows
     }
-    
+
     this.seaFloorModel = new SeaFloorModel(this.scene, seaFloorConfig)
-    
+
     // Load the model asynchronously if enabled
     if (seaFloorParams.enabled) {
       this.seaFloorModel.loadModel().then(() => {
@@ -309,21 +329,31 @@ export class SardinesScene {
   private handleResize(): void {
     const container = this.renderer.domElement.parentElement
     if (!container) return
-    
+
     const width = container.clientWidth
     const height = container.clientHeight
-    
+
     this.camera.aspect = width / height
     this.camera.updateProjectionMatrix()
     this.renderer.setSize(width, height)
   }
 
-    public update(): void {
+  private deltaTimeHistory: number[] = []
+  private maxDeltaTimeHistory: number = 5
+
+  public update(): void {
     if (this.isPaused) return
 
     const currentTime = performance.now()
-    const deltaTime = Math.min((currentTime - this.lastTime) / 1000, 1/30)
+    let rawDeltaTime = Math.min((currentTime - this.lastTime) / 1000, 0.05) // Cap at 20fps for physics stability
     this.lastTime = currentTime
+
+    // Smooth deltaTime to avoid micro-stutters from browser frame timing jitter
+    this.deltaTimeHistory.push(rawDeltaTime)
+    if (this.deltaTimeHistory.length > this.maxDeltaTimeHistory) {
+      this.deltaTimeHistory.shift()
+    }
+    const deltaTime = this.deltaTimeHistory.reduce((a, b) => a + b, 0) / this.deltaTimeHistory.length
 
     // Update flock manager
     if (this.flockManager) {
@@ -343,8 +373,8 @@ export class SardinesScene {
 
     // Wall system removed - no walls or grids
 
-         // Update special cameras (follow/action/single-fish modes)
-     this.updateSpecialCameras()
+    // Update special cameras (follow/action/single-fish modes)
+    this.updateSpecialCameras()
 
     // Update controls
     this.controls.update()
@@ -371,13 +401,13 @@ export class SardinesScene {
       if (parameters.behavior) {
         this.flockManager.updateBehavior(parameters.behavior)
       }
-      
+
       // Update flock configuration
       if (parameters.flock) {
         this.flockManager.updateConfig(parameters.flock)
       }
     }
-    
+
     if (this.fishRenderer) {
       // Update rendering parameters
       if (parameters.rendering) {
@@ -386,7 +416,7 @@ export class SardinesScene {
           this.flockManager?.setFishCount(parameters.rendering.fishCount)
           console.log('Updated fish count to:', parameters.rendering.fishCount)
         }
-        
+
         if (parameters.rendering.modelScale !== undefined) {
           // Update fish scale
           this.fishRenderer.updateMaterial({
@@ -408,7 +438,7 @@ export class SardinesScene {
     // Get the current camera preset from the store to determine mode
     const { ui } = useSimulationStore.getState()
     const selectedPreset = ui.selectedCameraPreset
-    
+
     // Determine camera mode from preset name
     if (selectedPreset === 'single-fish') {
       this.currentCameraMode = 'single-fish'
@@ -419,13 +449,13 @@ export class SardinesScene {
     } else {
       this.currentCameraMode = 'static'
     }
-    
+
     // Update camera position
     this.camera.position.set(cameraState.position.x, cameraState.position.y, cameraState.position.z)
-    
+
     // Update camera target (look at point)
     this.controls.target.set(cameraState.target.x, cameraState.target.y, cameraState.target.z)
-    
+
     // Update controls
     this.controls.update()
   }
@@ -450,12 +480,12 @@ export class SardinesScene {
         flockCenter.y + 40, // Closer to the flock
         flockCenter.z + 80 // Much closer behind the flock
       )
-      
+
       // Smooth camera movement
       this.camera.position.lerp(targetPosition, this.cameraLerpFactor)
       this.controls.target.lerp(flockCenter, this.cameraLerpFactor)
       this.controls.update()
-      
+
     } else if (this.currentCameraMode === 'action') {
       // Action camera: dynamic angle that follows flock movement with variable height
       const flockVelocity = new THREE.Vector3()
@@ -463,31 +493,31 @@ export class SardinesScene {
         flockVelocity.add(fish.physics.velocity)
       })
       flockVelocity.divideScalar(fish.length)
-      
+
       // Calculate dynamic camera position based on flock movement
       const movementDirection = flockVelocity.clone().normalize()
       const speed = flockVelocity.length()
-      
+
       // Dynamic height based on flock speed and position with more random, longer variations
       const baseHeight = 40
       const speedHeightVariation = Math.min(speed * 2, 30) // Height increases with speed
-      
+
       // More random and longer height variations using multiple sine waves
       const time = Date.now() * 0.0005 // Slower base frequency
       const longVariation = Math.sin(time) * 25 // Longer, larger oscillation
       const mediumVariation = Math.sin(time * 2.3) * 15 // Medium frequency variation
       const shortVariation = Math.sin(time * 5.7) * 8 // Short frequency variation
       const randomVariation = Math.sin(time * 1.7 + Math.sin(time * 0.3) * 10) * 12 // Chaotic variation
-      
+
       const flockHeightVariation = longVariation + mediumVariation + shortVariation + randomVariation
       const dynamicHeight = baseHeight + speedHeightVariation + flockHeightVariation
-      
+
       const actionPosition = new THREE.Vector3(
         flockCenter.x + movementDirection.x * 120,
         flockCenter.y + dynamicHeight,
         flockCenter.z + movementDirection.z * 80
       )
-      
+
       // Super smooth camera movement for action camera (reduced responsiveness)
       this.camera.position.lerp(actionPosition, this.cameraLerpFactor * 0.3)
       this.controls.target.lerp(flockCenter, this.cameraLerpFactor * 0.3)
@@ -495,21 +525,21 @@ export class SardinesScene {
     } else if (this.currentCameraMode === 'dolly-cam') {
       // Dolly cam: finds and follows the most crowded schools
       const clusterCenters: Array<{ center: THREE.Vector3; density: number; fish: any[] }> = []
-      
+
       // Find clusters of fish using spatial partitioning
       const clusterRadius = 30
       const visited = new Set<number>()
-      
+
       fish.forEach((currentFish, index) => {
         if (visited.has(index)) return
-        
+
         const cluster: any[] = []
         const clusterCenter = new THREE.Vector3()
-        
+
         // Find all fish within cluster radius
         fish.forEach((otherFish, otherIndex) => {
           if (visited.has(otherIndex)) return
-          
+
           const distance = currentFish.physics.position.distanceTo(otherFish.physics.position)
           if (distance <= clusterRadius) {
             cluster.push(otherFish)
@@ -517,7 +547,7 @@ export class SardinesScene {
             visited.add(otherIndex)
           }
         })
-        
+
         if (cluster.length > 5) { // Only consider meaningful clusters
           clusterCenter.divideScalar(cluster.length)
           clusterCenters.push({
@@ -527,20 +557,20 @@ export class SardinesScene {
           })
         }
       })
-      
+
       // Find the densest cluster
       let targetCluster = clusterCenters[0]
       if (clusterCenters.length > 1) {
-        targetCluster = clusterCenters.reduce((max, cluster) => 
+        targetCluster = clusterCenters.reduce((max, cluster) =>
           cluster.density > max.density ? cluster : max
         )
       }
-      
+
       // Debug logging for dolly cam
       if (clusterCenters.length > 0) {
         console.log(`🎬 Dolly Cam: Found ${clusterCenters.length} clusters, targeting cluster with ${targetCluster.density} fish`)
       }
-      
+
       if (targetCluster) {
         // Calculate dolly cam position - close and dynamic
         const clusterVelocity = new THREE.Vector3()
@@ -548,21 +578,21 @@ export class SardinesScene {
           clusterVelocity.add(fish.physics.velocity)
         })
         clusterVelocity.divideScalar(targetCluster.fish.length)
-        
+
         // Dynamic dolly positioning based on cluster movement
         const movementDirection = clusterVelocity.clone().normalize()
         const speed = clusterVelocity.length()
-        
+
         // Closer positioning for intimate shots
         const baseDistance = 40 + Math.min(speed * 3, 20) // Distance varies with speed
         const heightVariation = Math.sin(Date.now() * 0.001) * 8 // Gentle height oscillation
-        
+
         const dollyPosition = new THREE.Vector3(
           targetCluster.center.x + movementDirection.x * baseDistance,
           targetCluster.center.y + 25 + heightVariation,
           targetCluster.center.z + movementDirection.z * baseDistance
         )
-        
+
         // Smooth dolly movement
         this.camera.position.lerp(dollyPosition, this.cameraLerpFactor * 0.4)
         this.controls.target.lerp(targetCluster.center, this.cameraLerpFactor * 0.4)
@@ -583,11 +613,11 @@ export class SardinesScene {
       // Single fish follow camera - smooth following with depth variation
       const targetFish = fish[0] // Follow the first fish
       const fishPosition = targetFish.physics.position.clone()
-      
+
       // Calculate smooth depth variation based on fish Y position
       const depthVariation = Math.sin(Date.now() * 0.001) * 5 // Gentle depth change
       const targetDepth = fishPosition.y + depthVariation
-      
+
       // Position camera further back and higher for smoother view
       const offset = new THREE.Vector3(0, 8, 20) // Higher and further back
       const targetPosition = new THREE.Vector3(
@@ -595,7 +625,7 @@ export class SardinesScene {
         targetDepth + offset.y,
         fishPosition.z + offset.z
       )
-      
+
       // Very smooth camera movement to reduce shaking
       this.camera.position.lerp(targetPosition, this.cameraLerpFactor * 0.5)
       this.controls.target.lerp(fishPosition, this.cameraLerpFactor * 0.5)
@@ -606,10 +636,10 @@ export class SardinesScene {
   public getStats(): SceneStats {
     const averageFrameTime = this.frameTimeHistory.reduce((sum, time) => sum + time, 0) / this.frameTimeHistory.length
     const fps = averageFrameTime > 0 ? 1000 / averageFrameTime : 0
-    
+
     const flockStats = this.flockManager?.getStats()
     const rendererStats = this.fishRenderer?.getPerformanceStats()
-    
+
     return {
       fps: Math.round(fps),
       memory: Math.round((performance as any).memory?.usedJSHeapSize / 1024 / 1024 || 0),
@@ -630,17 +660,17 @@ export class SardinesScene {
 
   public dispose(): void {
     // Wall system removed
-    
+
     // Cleanup sea floor model
     if (this.seaFloorModel) {
       this.seaFloorModel.dispose()
     }
-    
+
     // Cleanup fish renderer
     if (this.fishRenderer) {
       this.fishRenderer.dispose()
     }
-    
+
     // Cleanup Three.js resources
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
@@ -652,12 +682,12 @@ export class SardinesScene {
         }
       }
     })
-    
+
     this.renderer.dispose()
-    
+
     // Remove event listeners
     window.removeEventListener('resize', this.handleResize)
-    
+
     // Remove DOM elements
     if (this.renderer.domElement.parentElement) {
       this.renderer.domElement.parentElement.removeChild(this.renderer.domElement)
@@ -672,46 +702,41 @@ export class SardinesScene {
     useSimulationStore.subscribe((state) => {
       if (this.flockManager) {
         // Convert store parameters to Fish behavior format
-        const fishBehavior: FishBehavior = {
-          // Core movement parameters
-          bodyLength: state.parameters.behavior.bodyLength,
-          maxTurnRate: state.parameters.behavior.maxTurnRate,
-          maxRollAngle: state.parameters.behavior.maxRollAngle,
-          rollSpeed: state.parameters.behavior.rollSpeed,
-          
-          // Undulation parameters
-          undulationFrequency: state.parameters.behavior.undulationFrequency,
-          undulationAmplitude: state.parameters.behavior.undulationAmplitude,
-          
-          // Speed parameters
-          accelerationRate: state.parameters.behavior.accelerationRate,
-          
-          // Direction change parameters
-          directionChangeInterval: state.parameters.behavior.directionChangeInterval,
-          turnSmoothness: state.parameters.behavior.turnSmoothness,
-          
-          // Flocking parameters
-          neighborRadius: state.parameters.behavior.neighborRadius,
-          separationRadius: state.parameters.behavior.separationRadius,
-          collisionRadius: state.parameters.behavior.collisionRadius,
-          cohesionStrength: state.parameters.behavior.cohesionStrength,
-          separationStrength: state.parameters.behavior.separationStrength,
-          alignmentStrength: state.parameters.behavior.alignmentStrength,
-          
-          // Force balancing
-          individualWeight: state.parameters.behavior.individualWeight,
-          socialWeight: state.parameters.behavior.socialWeight
-        }
-        
+        const fishBehavior: FishBehavior = { ...state.parameters.behavior }
+
         // Update all fish with new behavior parameters
         this.flockManager.updateBehavior(fishBehavior)
-        
+
         // Update fish count if changed
         if (state.parameters.rendering.fishCount !== undefined) {
           this.flockManager.setFishCount(state.parameters.rendering.fishCount)
         }
       }
-      
+
+      if (this.fishRenderer) {
+        // Update lighting intensity and material properties real-time
+        if (state.parameters.rendering) {
+          const r = state.parameters.rendering
+          this.fishRenderer.updateMaterial({
+            metalness: r.metalness,
+            roughness: r.roughness,
+            envMapIntensity: r.envMapIntensity,
+            emissiveIntensity: r.emissiveIntensity
+          })
+
+          if (r.modelScale !== undefined) {
+            this.fishRenderer.setScale(r.modelScale)
+          }
+
+          if (r.lightingIntensity !== undefined) {
+            const mainLight = this.scene.getObjectByName('mainLight') as THREE.DirectionalLight
+            if (mainLight) mainLight.intensity = r.lightingIntensity * 1.2
+            const fillLight = this.scene.getObjectByName('fillLight') as THREE.DirectionalLight
+            if (fillLight) fillLight.intensity = r.lightingIntensity * 0.5
+          }
+        }
+      }
+
       // Wall system removed
     })
   }
@@ -723,7 +748,7 @@ export class SardinesScene {
     useSimulationStore.subscribe((state) => {
       if (this.seaFloorModel && state.parameters.seaFloor) {
         const seaFloorParams = state.parameters.seaFloor
-        
+
         // Update sea floor configuration
         const seaFloorConfig: SeaFloorConfig = {
           enabled: seaFloorParams.enabled,
@@ -733,9 +758,9 @@ export class SardinesScene {
           receiveShadows: seaFloorParams.receiveShadows,
           castShadows: seaFloorParams.castShadows
         }
-        
+
         this.seaFloorModel.updateConfig(seaFloorConfig)
-        
+
         // Load or unload model based on enabled state
         if (seaFloorParams.enabled && !this.seaFloorModel.getModel()) {
           this.seaFloorModel.loadModel()

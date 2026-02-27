@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { Fish } from './Fish.js'
+import { useSimulationStore } from '../stores/simulationStore.js'
 
 export interface FishRenderConfig {
   modelPath: string
@@ -22,12 +23,11 @@ export class FishRenderer {
   private tempVector: THREE.Vector3 = new THREE.Vector3()
   private tempQuaternion: THREE.Quaternion = new THREE.Quaternion()
   private tempColor: THREE.Color = new THREE.Color()
-  
+
   // Performance optimization properties
   private camera: THREE.Camera | null = null
   private visibleFishCount: number = 0
-  private lastUpdateTime: number = 0
-  private updateInterval: number = 16 // Update every 16ms (60fps) for smooth movement
+  private tempScale: THREE.Vector3 = new THREE.Vector3()
   private frustum: THREE.Frustum = new THREE.Frustum()
   private matrix: THREE.Matrix4 = new THREE.Matrix4()
   private sphere: THREE.Sphere = new THREE.Sphere()
@@ -36,7 +36,7 @@ export class FishRenderer {
     this.scene = scene
     this.config = config
     console.log('FishRenderer constructor called')
-    
+
     // Load the GLTF model directly
     this.loadModel()
   }
@@ -48,20 +48,20 @@ export class FishRenderer {
     try {
       console.log('Loading fish model from:', this.config.modelPath)
       const loader = new GLTFLoader()
-      
+
       // Add error handling for the loader
       loader.setPath('/assets/fish-model/')
-      
+
       console.log('Attempting to load scene.gltf...')
       const gltf = await loader.loadAsync('scene.gltf')
       console.log('GLTF model loaded successfully!')
-      
+
       console.log('GLTF loaded, scene children:', gltf.scene.children.length)
-      
+
       // Get the first mesh from the model
       const model = gltf.scene
       let fishMesh: THREE.Mesh | null = null
-      
+
       model.traverse((child) => {
         console.log('Traversing child:', child.type, child.name)
         if (child instanceof THREE.Mesh && !fishMesh) {
@@ -80,7 +80,7 @@ export class FishRenderer {
       // Clone geometry and material for instancing
       this.geometry = (fishMesh as THREE.Mesh).geometry.clone()
       console.log('Geometry cloned, vertices:', this.geometry.attributes.position.count)
-      
+
       // Handle material cloning (could be single material or array)
       const originalMaterial = (fishMesh as THREE.Mesh).material
       if (Array.isArray(originalMaterial)) {
@@ -90,7 +90,7 @@ export class FishRenderer {
         this.material = originalMaterial.clone()
         console.log('Cloned single material:', this.material.name)
       }
-      
+
       // Log material properties for debugging
       if (this.material) {
         console.log('Material type:', this.material.type)
@@ -106,38 +106,28 @@ export class FishRenderer {
       // Configure material for underwater rendering with textures
       if (this.material instanceof THREE.Material) {
         // Preserve original materials and textures
-        if (this.material instanceof THREE.MeshStandardMaterial || 
-            this.material instanceof THREE.MeshLambertMaterial ||
-            this.material instanceof THREE.MeshPhongMaterial) {
-          
+        if (this.material instanceof THREE.MeshStandardMaterial ||
+          this.material instanceof THREE.MeshLambertMaterial ||
+          this.material instanceof THREE.MeshPhongMaterial) {
+
           // Keep the original material but optimize for underwater rendering
           this.material.side = THREE.DoubleSide
           this.material.transparent = false
-          
-          // Realistic sardine appearance - bright with strong metallic shine
+
+          // Realistic sardine appearance - reactive to store parameters
           if (this.material instanceof THREE.MeshStandardMaterial) {
-            this.material.metalness = 0.8 // Strong metalness for authentic sardine shine
-            this.material.roughness = 0.7 // Keep natural fish skin texture
-            this.material.envMapIntensity = 0.9 // Enhanced environment reflection
-            
-            // Brighten the fish with enhanced sardine coloring
-            this.material.color.setHex(0xE8F4FD) // Brighter silver-blue sardine color
-            
-            // Enhance brightness and reflectivity
-            if (this.material.map) {
-              this.material.transparent = false
-              this.material.opacity = 1.0
-              // Increase texture brightness
-              this.material.map.colorSpace = THREE.SRGBColorSpace
-            }
-            
-            // Add emissive glow for realistic sardine shine
-            this.material.emissive.setHex(0x1A3D5C) // Subtle blue emissive glow
-            this.material.emissiveIntensity = 0.12 // Enhanced glow intensity
-            
-            console.log('Applied realistic bright sardine material properties')
+            const r = useSimulationStore.getState().parameters.rendering
+            this.material.metalness = r.metalness
+            this.material.roughness = r.roughness
+            this.material.envMapIntensity = r.envMapIntensity
+
+            this.material.color.setHex(0xCCCCCC) // Standard neutral base for textures
+
+            // Add emissive glow from store
+            this.material.emissive.setHex(0xADDEFF)
+            this.material.emissiveIntensity = r.emissiveIntensity
           }
-          
+
           console.log('Using original material with textures:', this.material.name)
         } else {
           // Fallback for other material types
@@ -153,12 +143,12 @@ export class FishRenderer {
           this.material,
           this.config.maxFishCount
         )
-        
+
         // Enable instance colors for individual brightness variations
         this.instancedMesh.instanceColor = new THREE.InstancedBufferAttribute(
           new Float32Array(this.config.maxFishCount * 3), 3
         )
-        
+
         console.log('InstancedMesh created for', this.config.maxFishCount, 'fish with instance colors')
       }
 
@@ -172,10 +162,10 @@ export class FishRenderer {
         this.scene.add(this.instancedMesh)
         console.log('InstancedMesh created for', this.config.maxFishCount, 'fish')
       }
-    
+
       // Optimize textures for performance
       this.updateTextureSettings()
-    
+
       this.modelLoaded = true
       console.log('Fish model loaded successfully with textures')
     } catch (error) {
@@ -193,15 +183,16 @@ export class FishRenderer {
     const fishGeometry = new THREE.ConeGeometry(0.8, 3, 12)
     fishGeometry.rotateX(Math.PI / 2) // Point forward
     fishGeometry.rotateZ(Math.PI) // Fix orientation to prevent spinning
-    
+
     this.geometry = fishGeometry
+    const r = useSimulationStore.getState().parameters.rendering
     this.material = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(0xE8F4FD), // Brighter silver-blue sardine color
-      metalness: 0.8, // Strong metalness for authentic sardine shine
-      roughness: 0.7, // Keep natural fish skin texture
-      envMapIntensity: 0.9, // Enhanced environment reflection
-      emissive: new THREE.Color(0x1A3D5C), // Subtle blue emissive glow
-      emissiveIntensity: 0.12, // Enhanced glow intensity
+      color: new THREE.Color(0x888888),
+      metalness: r.metalness,
+      roughness: r.roughness,
+      envMapIntensity: r.envMapIntensity,
+      emissive: new THREE.Color(0xB2E0FF),
+      emissiveIntensity: r.emissiveIntensity,
       transparent: false,
       side: THREE.DoubleSide
     })
@@ -230,22 +221,12 @@ export class FishRenderer {
     this.camera = camera
   }
 
-  /**
-   * Update fish positions and rotations - CLEAN VERSION
-   */
   public updateFish(fish: Fish[]): void {
     if (!this.instancedMesh || !this.modelLoaded) {
       return
     }
 
-    // Throttle updates for performance
-    const currentTime = performance.now()
-    if (currentTime - this.lastUpdateTime < this.updateInterval) {
-      return
-    }
-    this.lastUpdateTime = currentTime
-
-    // Update frustum for culling
+    // Update frustum for culling once per frame
     if (this.config.enableFrustumCulling && this.camera) {
       this.frustum.setFromProjectionMatrix(
         this.matrix.multiplyMatrices(
@@ -255,124 +236,99 @@ export class FishRenderer {
       )
     }
 
-    // Determine visible fish count based on frustum culling
-    let visibleFish = fish
-    if (this.config.enableFrustumCulling && this.camera) {
-      visibleFish = this.getVisibleFish(fish)
-    }
-
     // Limit to max fish count for performance
-    const fishToRender = visibleFish.slice(0, this.config.maxFishCount)
-    this.instancedMesh.count = fishToRender.length
+    let renderedCount = 0
 
     // Batch update matrices for better performance
-    fishToRender.forEach((fishInstance, index) => {
+    for (let i = 0; i < fish.length && renderedCount < this.config.maxFishCount; i++) {
+      const fishInstance = fish[i]
+
+      // Frustum culling check
+      if (this.config.enableFrustumCulling && this.camera) {
+        this.sphere.set(fishInstance.physics.position, 2 * this.config.scale)
+        if (!this.frustum.intersectsSphere(this.sphere)) continue
+      }
+
       // Set position
       this.tempVector.copy(fishInstance.physics.position)
-      
+
       // Use ONLY the physics rotation (no additional animations)
-      const targetRotation = fishInstance.physics.rotation.clone()
-      
+      const targetRotation = fishInstance.physics.rotation
+
       // Set rotation (convert Euler to Quaternion)
       this.tempQuaternion.setFromEuler(targetRotation)
-     
-      // Set scale with LOD optimization
-      let scale = fishInstance.physics.scale.clone().multiplyScalar(this.config.scale)
-      
+
+      // Set scale (Uniform config scale * individual size variation)
+      const instanceScale = this.config.scale * fishInstance.physics.scale.x
+      this.tempScale.set(
+        instanceScale,
+        instanceScale,
+        instanceScale
+      )
+
       // Apply LOD scaling for distant fish (simplified for performance)
       if (this.config.enableLOD && this.camera) {
         const distance = this.tempVector.distanceTo(this.camera.position)
         if (distance > this.config.lodDistance) {
           const lodScale = Math.max(0.3, this.config.lodDistance / distance)
-          scale.multiplyScalar(lodScale)
+          this.tempScale.multiplyScalar(lodScale)
         }
       }
-      
+
       // Update matrix
-      this.matrix.compose(this.tempVector, this.tempQuaternion, scale)
-      
-      // Set instance matrix
+      this.matrix.compose(this.tempVector, this.tempQuaternion, this.tempScale)
+
       if (this.instancedMesh) {
-        this.instancedMesh.setMatrixAt(index, this.matrix)
-        
+        this.instancedMesh.setMatrixAt(renderedCount, this.matrix)
+
         // Apply individual brightness variation
         const brightness = fishInstance.appearance.brightnessVariation
         const colorVariation = fishInstance.appearance.colorVariation
-        
+
         // Start with base sardine color and apply variations
-        this.tempColor.setHex(0xE8F4FD) // Brighter base sardine color
+        this.tempColor.setHex(0xFFFFFF) // Silvery white
         this.tempColor.multiplyScalar(brightness * colorVariation)
-        
+
         // Set instance color
-        this.instancedMesh.setColorAt(index, this.tempColor)
+        this.instancedMesh.setColorAt(renderedCount, this.tempColor)
       }
-    })
 
-    // Mark instances as needing update
-    this.instancedMesh.instanceMatrix.needsUpdate = true
-    if (this.instancedMesh.instanceColor) {
-      this.instancedMesh.instanceColor.needsUpdate = true
+      renderedCount++
     }
-    this.visibleFishCount = fishToRender.length
-  }
 
-  /**
-   * Get fish visible within camera frustum (optimized)
-   */
-  private getVisibleFish(fish: Fish[]): Fish[] {
-    if (!this.camera) return fish
-
-    return fish.filter(fishInstance => {
-      // Reuse sphere object for better performance
-      this.sphere.set(fishInstance.physics.position, 2 * this.config.scale)
-      return this.frustum.intersectsSphere(this.sphere)
-    })
-  }
-
-  /**
-   * Set fish count (for performance optimization)
-   */
-  public setFishCount(count: number): void {
     if (this.instancedMesh) {
-      this.instancedMesh.count = Math.min(count, this.config.maxFishCount)
+      this.instancedMesh.count = renderedCount
+      this.instancedMesh.instanceMatrix.needsUpdate = true
+      if (this.instancedMesh.instanceColor) {
+        this.instancedMesh.instanceColor.needsUpdate = true
+      }
     }
+    this.visibleFishCount = renderedCount
   }
-
-  /**
-   * Update material properties for enhanced metallic appearance
-   */
-  public updateMaterial(properties: Partial<THREE.Material>): void {
-    if (this.material) {
+  public updateMaterial(properties: Partial<THREE.MeshStandardMaterial>): void {
+    if (this.material && this.material instanceof THREE.MeshStandardMaterial) {
       Object.assign(this.material, properties)
     }
   }
 
   /**
-   * Enable enhanced metallic sardine appearance
+   * Set fish scale in real-time
    */
-  public enableMetallicAppearance(): void {
-    if (this.material instanceof THREE.MeshStandardMaterial) {
-      this.material.metalness = 0.9 // Very high metalness for maximum shine
-      this.material.roughness = 0.7 // Keep natural roughness for fish skin texture
-      this.material.envMapIntensity = 1.0 // Maximum reflection
-      this.material.color.setHex(0xF0F8FF) // Ultra bright sardine color
-      this.material.emissiveIntensity = 0.18 // Maximum glow
-      console.log('Maximum sardine shine enabled with natural texture')
-    }
+  public setScale(scale: number): void {
+    this.config.scale = scale
   }
 
   /**
-   * Disable metallic appearance (return to natural look)
+   * Reset material to defaults from store 
    */
-  public disableMetallicAppearance(): void {
-    if (this.material instanceof THREE.MeshStandardMaterial) {
-      this.material.metalness = 0.2
-      this.material.roughness = 0.8 // High roughness for matte natural look
-      this.material.envMapIntensity = 0.3
-      this.material.color.setHex(0xB8C6DB) // Dimmer natural color
-      this.material.emissiveIntensity = 0.05 // Reduced glow
-      console.log('Natural sardine appearance restored')
-    }
+  public resetMaterial(): void {
+    const r = useSimulationStore.getState().parameters.rendering
+    this.updateMaterial({
+      metalness: r.metalness,
+      roughness: r.roughness,
+      envMapIntensity: r.envMapIntensity,
+      emissiveIntensity: r.emissiveIntensity
+    })
   }
 
   /**
@@ -389,7 +345,7 @@ export class FishRenderer {
         this.material.map.wrapT = THREE.ClampToEdgeWrapping
         console.log('Optimized base color texture')
       }
-      
+
       if (this.material.normalMap) {
         this.material.normalMap.generateMipmaps = true
         this.material.normalMap.minFilter = THREE.LinearMipmapLinearFilter

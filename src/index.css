@@ -25,7 +25,8 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100%;
@@ -89,4 +90,132 @@ html, body {
 ::selection {
   background: var(--accent);
   color: var(--bg0);
+}
+
+/* Custom range slider styling */
+input[type='range'] {
+  -webkit-appearance: none;
+  background: transparent;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: -5.5px;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 2px;
+  background: var(--hairline);
+  border-radius: 1px;
+}
+
+/* dat.gui Inspired Styling - Ultra Minimalist */
+.dat-gui-panel {
+  background-color: rgba(26, 26, 26, 0.9);
+  border-left: 2px solid #2fa1d6;
+  font-family: 'Lucida Grande', sans-serif;
+  font-size: 10px;
+  color: #eee;
+  user-select: none;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+}
+
+.dat-gui-row {
+  height: 18px;
+  /* Extra condensed */
+  border-bottom: 1px solid #222;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  line-height: 18px;
+}
+
+.dat-gui-label {
+  width: 45%;
+  padding-left: 4px;
+  color: #ccc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-right: 1px solid #222;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.dat-gui-controller {
+  width: 55%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  background: #252525;
+  position: relative;
+}
+
+.dat-gui-slider-fg {
+  height: 100%;
+  background: #2fa1d6;
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  opacity: 0.3;
+}
+
+.dat-gui-input-text {
+  background: transparent;
+  border: none;
+  color: #2fa1d6;
+  width: 100%;
+  height: 100%;
+  padding: 0 4px;
+  font-size: 9px;
+  outline: none;
+  z-index: 10;
+  text-align: left;
+}
+
+.dat-gui-folder-header {
+  background: #000;
+  height: 18px;
+  line-height: 18px;
+  padding-left: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  border-bottom: 1px solid #222;
+  display: flex;
+  align-items: center;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.dat-gui-folder-header::before {
+  content: '▼';
+  font-size: 6px;
+  margin-right: 4px;
+  transition: transform 0.2s;
+}
+
+.dat-gui-folder-closed::before {
+  transform: rotate(-90deg);
+}
+
+input[type='range'].dat-gui-range {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: ew-resize;
+  z-index: 20;
 }
