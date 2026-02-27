@@ -28,7 +28,7 @@ export class SharkRenderer {
             const gltf = await loader.loadAsync(modelPath)
 
             this.model = gltf.scene
-            this.model.scale.set(5, 5, 5) // Sharks are bigger than sardines
+            this.model.scale.set(0.25, 0.25, 0.25) // Reduced scale by 20x as requested
             this.model.visible = false
             this.scene.add(this.model)
 
