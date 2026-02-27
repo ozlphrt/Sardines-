@@ -187,6 +187,13 @@ const Sidebar: React.FC = () => {
           min={0} max={1}
           onChange={(v) => actions.updateParameter('rendering', 'emissiveIntensity', v)}
         />
+        <Slider
+          label="Fog Density"
+          value={parameters.rendering.fogDensity}
+          min={0} max={0.1}
+          step={0.001}
+          onChange={(v) => actions.updateParameter('rendering', 'fogDensity', v)}
+        />
         <div className="dat-gui-row">
           <div className="dat-gui-label">Sea Floor</div>
           <div className="dat-gui-controller px-2">

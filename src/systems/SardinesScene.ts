@@ -303,8 +303,14 @@ export class SardinesScene {
   }
 
   private setupEnvironment(): void {
-    // Natural underwater background color
-    this.scene.background = new THREE.Color(0x1B4F72) // Deep blue water
+    const r = useSimulationStore.getState().parameters.rendering
+
+    // Natural underwater background color - darkened as requested
+    const fogColor = new THREE.Color(r.fogColor || 0x081621)
+    this.scene.background = fogColor
+
+    // Add distance-based fog
+    this.scene.fog = new THREE.FogExp2(fogColor, r.fogDensity || 0.012)
 
     // Create a procedural high-quality environment map
     const pmremGenerator = new THREE.PMREMGenerator(this.renderer)
@@ -769,6 +775,16 @@ export class SardinesScene {
             if (mainLight) mainLight.intensity = r.lightingIntensity * 1.2
             const fillLight = this.scene.getObjectByName('fillLight') as THREE.DirectionalLight
             if (fillLight) fillLight.intensity = r.lightingIntensity * 0.5
+          }
+
+          // Update fog real-time
+          if (r.fogColor !== undefined || r.fogDensity !== undefined) {
+            const fogColor = new THREE.Color(r.fogColor)
+            this.scene.background = fogColor
+            if (this.scene.fog instanceof THREE.FogExp2) {
+              this.scene.fog.color = fogColor
+              this.scene.fog.density = r.fogDensity
+            }
           }
         }
       }

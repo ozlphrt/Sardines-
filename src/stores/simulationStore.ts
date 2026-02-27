@@ -63,6 +63,8 @@ export interface RenderingParams {
   roughness: number
   envMapIntensity: number
   emissiveIntensity: number
+  fogDensity: number
+  fogColor: string
 }
 
 export interface WallParams {
@@ -218,6 +220,8 @@ const defaultRendering: RenderingParams = {
   roughness: 0.4, // Smoothness 0.60
   envMapIntensity: 1.0,
   emissiveIntensity: 0.0,
+  fogDensity: 0.012,
+  fogColor: '#081621',
 }
 
 const defaultWalls: WallParams = {
