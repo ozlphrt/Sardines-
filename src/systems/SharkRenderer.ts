@@ -21,8 +21,8 @@ export class SharkRenderer {
             const loader = new GLTFLoader()
             const basePath = (import.meta as any).env.BASE_URL || '/'
 
-            // Path based on my xcopy earlier: public/models/white_pointer/
-            const modelPath = `${basePath}models/white_pointer/scene.gltf`
+            // Using the new Great White Shark model
+            const modelPath = `${basePath}models/great_white_shark/scene.gltf`
 
             console.log('SharkRenderer: Loading model from', modelPath)
             const gltf = await loader.loadAsync(modelPath)

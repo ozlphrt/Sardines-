@@ -279,12 +279,12 @@ export class FlockManager {
     let bestCell: Fish[] | null = null
     let maxCount = 0
 
-    this.grid.forEach((cell) => {
+    for (const cell of this.grid.values()) {
       if (cell.length > maxCount) {
         maxCount = cell.length
         bestCell = cell
       }
-    })
+    }
 
     if (!bestCell) return null
     const cell: Fish[] = bestCell
