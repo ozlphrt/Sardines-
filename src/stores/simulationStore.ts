@@ -627,7 +627,7 @@ export const useSimulationStore = create<SimulationStore>()(
           state.parameters.seaFloor = { ...defaultSeaFloor }
           state.parameters.rendering = { ...defaultRendering }
           state.parameters.physics = { ...defaultPhysics }
-          state.ui.sidebarVisible = true // Always show sidebar on load
+          state.ui.sidebarVisible = false // Force sidebar closed on load as requested
           console.log('🔄 FINAL COORDINATION RESET APPLIED')
         }
       },
