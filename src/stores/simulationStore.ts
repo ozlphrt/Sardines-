@@ -259,7 +259,7 @@ const defaultPerformance: PerformanceData = {
 }
 
 const defaultCamera: CameraState = {
-  position: { x: 120, y: 40, z: 80 },
+  position: { x: 300, y: 100, z: 200 }, // Moved back to see larger area
   target: { x: 0, y: 0, z: 0 },
 }
 

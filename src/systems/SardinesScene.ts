@@ -204,8 +204,8 @@ export class SardinesScene {
 
   private initializeFlockManager(): void {
     const bounds = new THREE.Box3(
-      new THREE.Vector3(-100, -40, -100), // Larger swimming area
-      new THREE.Vector3(100, 40, 100)
+      new THREE.Vector3(-600, -40, -600), // Larger swimming area
+      new THREE.Vector3(600, 250, 600)
     )
 
     // Get initial behavior from store instead of hardcoding
