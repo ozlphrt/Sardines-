@@ -13,12 +13,18 @@ export interface FishRenderConfig {
   lodDistance: number
 }
 
+interface SpeciesModel {
+  geometry: THREE.BufferGeometry
+  material: THREE.Material
+  mesh: THREE.InstancedMesh
+  baseScale: number
+  loaded: boolean
+}
+
 export class FishRenderer {
   private scene: THREE.Scene
-  private instancedMesh: THREE.InstancedMesh | null = null
-  private geometry: THREE.BufferGeometry | null = null
-  private material: THREE.Material | null = null
-  private modelLoaded: boolean = false
+  private species: Map<string, SpeciesModel> = new Map()
+  private currentSpeciesKey: string = 'sardine'
   private config: FishRenderConfig
   private tempQuaternion: THREE.Quaternion = new THREE.Quaternion()
   private tempColor: THREE.Color = new THREE.Color()
@@ -33,155 +39,119 @@ export class FishRenderer {
     this.config = config
 
     // Load initial species from store
-    const species = useSimulationStore.getState().parameters.rendering.selectedSpecies || 'sardine'
-    this.switchSpecies(species)
+    const initialSpecies = useSimulationStore.getState().parameters.rendering.selectedSpecies || 'sardine'
+    this.switchSpecies(initialSpecies)
   }
 
   /**
-   * Switch the fish species model
+   * Switch the fish species model or enable 'mixed' mode
    */
-  public async switchSpecies(species: string): Promise<void> {
-    console.log(`FishRenderer: Switching species to ${species}`)
-    this.modelLoaded = false
+  public async switchSpecies(speciesKey: string): Promise<void> {
+    console.log(`FishRenderer: Switching to ${speciesKey}`)
+    this.currentSpeciesKey = speciesKey
 
-    if (this.instancedMesh) {
-      this.scene.remove(this.instancedMesh)
+    // Hide all existing meshes first
+    this.species.forEach(s => {
+      s.mesh.visible = false
+    })
+
+    if (speciesKey === 'mixed') {
+      await Promise.all([
+        this.getOrLoadSpecies('sardine'),
+        this.getOrLoadSpecies('tropical'),
+        this.getOrLoadSpecies('school')
+      ])
+      this.species.forEach(s => s.mesh.visible = true)
+    } else {
+      const s = await this.getOrLoadSpecies(speciesKey)
+      if (s) s.mesh.visible = true
     }
+  }
+
+  private async getOrLoadSpecies(key: string): Promise<SpeciesModel | null> {
+    if (this.species.has(key)) return this.species.get(key)!
 
     try {
       const loader = new GLTFLoader()
       const basePath = (import.meta as any).env.BASE_URL || '/'
 
       let modelDir = ''
-      let modelFile = 'scene.gltf'
+      let baseScale = 1.0
 
-      switch (species) {
+      switch (key) {
         case 'tropical':
           modelDir = 'models/animated_swimming_tropical_fish_school_loop/'
+          baseScale = 0.003 // Normalize relative to sardine
           break
         case 'school':
           modelDir = 'models/school_of_fish/'
+          baseScale = 0.003 // Normalize relative to sardine
           break
         case 'sardine':
         default:
           modelDir = 'assets/fish-model/'
+          baseScale = 1.0
           break
       }
 
       loader.setPath(`${basePath}${modelDir}`)
-      const gltf = await loader.loadAsync(modelFile)
+      const gltf = await loader.loadAsync('scene.gltf')
 
-      const model = gltf.scene
       let fishMesh: THREE.Mesh | null = null
-
-      model.traverse((child) => {
-        if (child instanceof THREE.Mesh && !fishMesh) {
-          fishMesh = child
-        }
+      gltf.scene.traverse((child) => {
+        if (child instanceof THREE.Mesh && !fishMesh) fishMesh = child
       })
 
-      if (!fishMesh) {
-        throw new Error('No mesh found in GLTF model')
-      }
+      if (!fishMesh) throw new Error(`No mesh found for ${key}`)
 
-      if (this.geometry) this.geometry.dispose()
-      if (this.material) this.material.dispose()
-
-      this.geometry = (fishMesh as THREE.Mesh).geometry.clone()
-
+      const geometry = (fishMesh as THREE.Mesh).geometry.clone()
       const originalMaterial = (fishMesh as THREE.Mesh).material
-      this.material = Array.isArray(originalMaterial) ? originalMaterial[0].clone() : originalMaterial.clone()
+      const material = Array.isArray(originalMaterial) ? originalMaterial[0].clone() : originalMaterial.clone()
 
-      if (this.material instanceof THREE.MeshStandardMaterial) {
+      if (material instanceof THREE.MeshStandardMaterial) {
         const r = useSimulationStore.getState().parameters.rendering
-        this.material.side = THREE.DoubleSide
-        this.material.metalness = r.metalness
-        this.material.roughness = r.roughness
-        this.material.envMapIntensity = r.envMapIntensity
-        this.material.emissive.setHex(0xADDEFF)
-        this.material.emissiveIntensity = r.emissiveIntensity
+        material.side = THREE.DoubleSide
+        material.metalness = r.metalness
+        material.roughness = r.roughness
+        material.envMapIntensity = r.envMapIntensity
+        material.emissive.setHex(key === 'sardine' ? 0xADDEFF : 0x000000)
+        material.emissiveIntensity = r.emissiveIntensity
       }
 
-      this.instancedMesh = new THREE.InstancedMesh(
-        this.geometry,
-        this.material,
-        this.config.maxFishCount
-      )
+      const instancedMesh = new THREE.InstancedMesh(geometry, material, this.config.maxFishCount)
+      instancedMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.config.maxFishCount * 3), 3)
+      instancedMesh.geometry.setAttribute('instanceWiggle', new THREE.InstancedBufferAttribute(new Float32Array(this.config.maxFishCount), 1))
 
-      this.instancedMesh.instanceColor = new THREE.InstancedBufferAttribute(
-        new Float32Array(this.config.maxFishCount * 3), 3
-      )
+      this.setupCustomShader(material)
 
-      this.instancedMesh.geometry.setAttribute('instanceWiggle', new THREE.InstancedBufferAttribute(
-        new Float32Array(this.config.maxFishCount), 1
-      ))
+      instancedMesh.frustumCulled = this.config.enableFrustumCulling
+      instancedMesh.castShadow = this.config.enableShadows
+      instancedMesh.receiveShadow = this.config.enableShadows
+      instancedMesh.visible = false // Start hidden
 
-      this.setupCustomShader()
+      this.scene.add(instancedMesh)
 
-      this.instancedMesh.frustumCulled = this.config.enableFrustumCulling
-      this.instancedMesh.castShadow = this.config.enableShadows
-      this.instancedMesh.receiveShadow = this.config.enableShadows
+      const speciesModel: SpeciesModel = {
+        geometry,
+        material,
+        mesh: instancedMesh,
+        baseScale,
+        loaded: true
+      }
 
-      this.scene.add(this.instancedMesh)
-      this.updateTextureSettings()
+      this.species.set(key, speciesModel)
+      this.updateTextureSettings(material)
 
-      this.modelLoaded = true
+      return speciesModel
     } catch (error) {
-      console.error('FishRenderer: Failed to switch species:', error)
-      this.createFallbackGeometry()
+      console.error(`FishRenderer: Failed to load ${key}:`, error)
+      return null
     }
   }
 
-  public setCamera(_camera: THREE.Camera): void {
-    // Kept for interface compatibility
-  }
-
-  public isLoaded(): boolean {
-    return this.modelLoaded
-  }
-
-  private createFallbackGeometry(): void {
-    const fishGeometry = new THREE.ConeGeometry(0.8, 3, 12)
-    fishGeometry.rotateX(Math.PI / 2)
-    fishGeometry.rotateZ(Math.PI)
-
-    this.geometry = fishGeometry
-    const r = useSimulationStore.getState().parameters.rendering
-    this.material = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(0x888888),
-      metalness: r.metalness,
-      roughness: r.roughness,
-      envMapIntensity: r.envMapIntensity,
-      side: THREE.DoubleSide
-    })
-
-    if (this.instancedMesh) this.scene.remove(this.instancedMesh)
-
-    this.instancedMesh = new THREE.InstancedMesh(
-      this.geometry,
-      this.material,
-      this.config.maxFishCount
-    )
-
-    this.instancedMesh.instanceColor = new THREE.InstancedBufferAttribute(
-      new Float32Array(this.config.maxFishCount * 3), 3
-    )
-
-    this.instancedMesh.geometry.setAttribute('instanceWiggle', new THREE.InstancedBufferAttribute(
-      new Float32Array(this.config.maxFishCount), 1
-    ))
-
-    this.setupCustomShader()
-    this.scene.add(this.instancedMesh)
-    this.modelLoaded = true
-  }
-
-  private setupCustomShader(): void {
-    if (!this.material) return
-
-    this.material.onBeforeCompile = (shader) => {
+  private setupCustomShader(material: THREE.Material): void {
+    material.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = { value: 0 }
-
       shader.vertexShader = `
         attribute float instanceWiggle;
         ${shader.vertexShader}
@@ -192,89 +162,102 @@ export class FishRenderer {
         float headZ = 0.8;
         float tailZ = -1.15;
         float tailWeight = clamp((headZ - position.z) / (headZ - tailZ), 0.0, 1.0);
-        // waveIntensity is now ultra-minimized for subtle swimming, 0.15 for maximum realism
         float waveIntensity = tailWeight * tailWeight * 0.15;
-        // Apply sine oscillation (instanceWiggle is the phase)
         transformed.x += sin(instanceWiggle) * waveIntensity;
         `
       )
-
-      this.material!.userData.shader = shader
+      material.userData.shader = shader
     }
-
-    this.material.needsUpdate = true
+    material.needsUpdate = true
   }
 
   public updateFish(fish: Fish[]): void {
-    if (!this.instancedMesh || !this.modelLoaded) return
-
-    const count = Math.min(fish.length, this.config.maxFishCount)
+    const totalCount = Math.min(fish.length, this.config.maxFishCount)
     this.visibleFishCount = 0
 
     const r = useSimulationStore.getState().parameters.rendering
-    this.tempScale.set(r.modelScale, r.modelScale, r.modelScale)
+    const speciesKeys = this.currentSpeciesKey === 'mixed'
+      ? ['sardine', 'tropical', 'school']
+      : [this.currentSpeciesKey]
 
-    for (let i = 0; i < count; i++) {
+    // Initialize counts for each mesh
+    const speciesMeshes = speciesKeys.map(k => this.species.get(k)).filter(m => !!m) as SpeciesModel[]
+    if (speciesMeshes.length === 0) return
+
+    // Distribution logic
+    const speciesCount = speciesMeshes.length
+    const meshInstances = speciesMeshes.map(() => 0)
+
+    for (let i = 0; i < totalCount; i++) {
       const fishInstance = fish[i]
+      const speciesIndex = i % speciesCount
+      const model = speciesMeshes[speciesIndex]
+      const instanceIndex = meshInstances[speciesIndex]
 
       this.tempQuaternion.setFromEuler(fishInstance.physics.rotation)
+      const scaleVal = r.modelScale * model.baseScale
+      this.tempScale.set(scaleVal, scaleVal, scaleVal)
 
-      this.matrix.compose(
-        fishInstance.physics.position,
-        this.tempQuaternion,
-        this.tempScale
-      )
+      this.matrix.compose(fishInstance.physics.position, this.tempQuaternion, this.tempScale)
+      model.mesh.setMatrixAt(instanceIndex, this.matrix)
 
-      this.instancedMesh.setMatrixAt(i, this.matrix)
+      const wiggleAttr = model.mesh.geometry.getAttribute('instanceWiggle') as THREE.InstancedBufferAttribute
+      wiggleAttr.setX(instanceIndex, fishInstance.getUndulationPhase())
 
-      const wiggleAttr = this.instancedMesh.geometry.getAttribute('instanceWiggle') as THREE.InstancedBufferAttribute
-      wiggleAttr.setX(i, fishInstance.getUndulationPhase())
-
+      // Base color logic
       const brightness = 0.8 + Math.random() * 0.4
       this.tempColor.setRGB(brightness, brightness, brightness)
-      this.instancedMesh.setColorAt(i, this.tempColor)
+      model.mesh.setColorAt(instanceIndex, this.tempColor)
 
+      meshInstances[speciesIndex]++
       this.visibleFishCount++
     }
 
-    this.instancedMesh.instanceMatrix.needsUpdate = true
-    if (this.instancedMesh.instanceColor) this.instancedMesh.instanceColor.needsUpdate = true
-    this.instancedMesh.geometry.getAttribute('instanceWiggle').needsUpdate = true
+    // Update meshes and set effective count
+    speciesMeshes.forEach((model, idx) => {
+      model.mesh.count = meshInstances[idx]
+      model.mesh.instanceMatrix.needsUpdate = true
+      if (model.mesh.instanceColor) model.mesh.instanceColor.needsUpdate = true
+      const wiggleAttr = model.mesh.geometry.getAttribute('instanceWiggle')
+      if (wiggleAttr) wiggleAttr.needsUpdate = true
+    })
   }
 
   public getPerformanceStats() {
+    let isAnyLoaded = false
+    this.species.forEach(s => { if (s.loaded) isAnyLoaded = true })
+
     return {
       visibleFishCount: this.visibleFishCount,
       totalFishCount: this.config.maxFishCount,
-      isModelLoaded: this.modelLoaded
+      isModelLoaded: isAnyLoaded
     }
   }
 
   public updateMaterial(params: { metalness?: number, roughness?: number, envMapIntensity?: number, emissiveIntensity?: number }): void {
-    if (this.material instanceof THREE.MeshStandardMaterial) {
-      if (params.metalness !== undefined) this.material.metalness = params.metalness
-      if (params.roughness !== undefined) this.material.roughness = params.roughness
-      if (params.envMapIntensity !== undefined) this.material.envMapIntensity = params.envMapIntensity
-      if (params.emissiveIntensity !== undefined) this.material.emissiveIntensity = params.emissiveIntensity
-    }
+    this.species.forEach(s => {
+      if (s.material instanceof THREE.MeshStandardMaterial) {
+        if (params.metalness !== undefined) s.material.metalness = params.metalness
+        if (params.roughness !== undefined) s.material.roughness = params.roughness
+        if (params.envMapIntensity !== undefined) s.material.envMapIntensity = params.envMapIntensity
+        if (params.emissiveIntensity !== undefined) s.material.emissiveIntensity = params.emissiveIntensity
+      }
+    })
   }
 
-  public setScale(scale: number): void {
-    this.config.scale = scale
-  }
-
-  public updateTextureSettings(): void {
-    if (this.material instanceof THREE.MeshStandardMaterial) {
-      if (this.material.map) this.material.map.anisotropy = 8
-      if (this.material.normalMap) this.material.normalMap.anisotropy = 8
+  private updateTextureSettings(material: THREE.Material): void {
+    if (material instanceof THREE.MeshStandardMaterial) {
+      if (material.map) material.map.anisotropy = 8
+      if (material.normalMap) material.normalMap.anisotropy = 8
     }
   }
 
   public dispose(): void {
-    if (this.instancedMesh) {
-      this.scene.remove(this.instancedMesh)
-    }
-    if (this.geometry) this.geometry.dispose()
-    if (this.material) this.material.dispose()
+    this.species.forEach(s => {
+      this.scene.remove(s.mesh)
+      if (s.geometry) s.geometry.dispose()
+      if (s.material) s.material.dispose()
+    })
+    this.species.clear()
   }
 }

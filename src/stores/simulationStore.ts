@@ -227,7 +227,7 @@ const defaultRendering: RenderingParams = {
   emissiveIntensity: 0.0,
   fogDensity: 0.012,
   fogColor: '#081621',
-  selectedSpecies: 'sardine',
+  selectedSpecies: 'sardine', // Options: 'sardine', 'tropical', 'school', 'mixed'
 }
 
 const defaultWalls: WallParams = {
