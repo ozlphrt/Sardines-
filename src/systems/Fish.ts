@@ -356,8 +356,8 @@ export class Fish {
     undulation.speedMultiplier = 0.2 + speedRatio * 2.0 // Slows down significantly when not swimming fast
 
     // Scale amplitude significantly based on speed to prevent excessive wagging when slow
-    const amplitudeScale = 0.2 + speedRatio * 0.8
-    undulation.amplitude = this.behavior.undulationAmplitude * amplitudeScale * 0.5 // Also reduced base amplitude by half
+    const amplitudeScale = 0.4 + speedRatio * 0.6 // Increased base scale from 0.2
+    undulation.amplitude = this.behavior.undulationAmplitude * amplitudeScale * 0.8 // Increased from 0.5 multiplier
 
     // Update undulation phase
     const effectiveFrequency = undulation.frequency * undulation.speedMultiplier

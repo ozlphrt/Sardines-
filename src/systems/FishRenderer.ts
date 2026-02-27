@@ -358,11 +358,15 @@ export class FishRenderer {
         // Procedural swimming motion (S-curve bending)
         // position.z represents the spine of the fish. 
         // We bend the X axis (left/right) proportionally to Z squared to create an organic tail-swish.
-        float waveIntensity = position.z * abs(position.z) * 0.15;
+        // Increased intensity significantly to ensure visibility.
+        float waveIntensity = position.z * abs(position.z) * 1.5;
         transformed.x += instanceWiggle * waveIntensity;
         `
       );
     };
+
+    // Explicitly flag material for update
+    this.material.needsUpdate = true;
   }
 
   /**
