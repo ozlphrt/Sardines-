@@ -297,7 +297,7 @@ export class SardinesScene {
       // Wait for model to load and optimize textures
       setTimeout(() => {
         if (this.fishRenderer && this.fishRenderer.isLoaded()) {
-          this.fishRenderer.updateTextureSettings()
+          this.fishRenderer.updateAllTextureSettings()
           console.log('Texture optimization applied to fish renderer')
         }
       }, 1000) // Wait 1 second for model to load
@@ -788,9 +788,6 @@ export class SardinesScene {
             emissiveIntensity: r.emissiveIntensity
           })
 
-          if (r.modelScale !== undefined) {
-            this.fishRenderer.setScale(r.modelScale)
-          }
 
           if (r.lightingIntensity !== undefined) {
             const mainLight = this.scene.getObjectByName('mainLight') as THREE.DirectionalLight

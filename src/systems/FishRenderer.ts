@@ -149,6 +149,16 @@ export class FishRenderer {
     }
   }
 
+  public setCamera(_camera: THREE.Camera): void {
+    // Kept for interface compatibility
+  }
+
+  public isLoaded(): boolean {
+    let anyLoaded = false
+    this.species.forEach(s => { if (s.loaded) anyLoaded = true })
+    return anyLoaded
+  }
+
   private setupCustomShader(material: THREE.Material): void {
     material.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = { value: 0 }
@@ -245,7 +255,11 @@ export class FishRenderer {
     })
   }
 
-  private updateTextureSettings(material: THREE.Material): void {
+  public updateAllTextureSettings(): void {
+    this.species.forEach(s => this.updateTextureSettings(s.material))
+  }
+
+  public updateTextureSettings(material: THREE.Material): void {
     if (material instanceof THREE.MeshStandardMaterial) {
       if (material.map) material.map.anisotropy = 8
       if (material.normalMap) material.normalMap.anisotropy = 8
