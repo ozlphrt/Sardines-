@@ -173,10 +173,15 @@ export class FishRenderer {
         #include <begin_vertex>
         float headZ = 0.8;
         float tailZ = -1.15;
+        // tailWeight: 0 at head, 1 at tail tip
         float tailWeight = clamp((headZ - position.z) / (headZ - tailZ), 0.0, 1.0);
-        // Modulate waveIntensity by thrust so tail goes still during glide
-        float waveIntensity = tailWeight * tailWeight * 0.15 * instanceThrust;
-        transformed.x += sin(instanceWiggle) * waveIntensity;
+        // Traveling wave along spine: each vertebra is at its own phase
+        // waveFreq controls how many S-bends fit along the body (2.5 = roughly one full S-wave)
+        float waveFreq = 2.5;
+        float spinePhase = instanceWiggle + position.z * waveFreq;
+        // Amplitude grows quadratically toward tail (head barely moves, tail bends a lot)
+        float waveIntensity = tailWeight * tailWeight * 0.18 * instanceThrust;
+        transformed.x += sin(spinePhase) * waveIntensity;
         `
       )
       material.userData.shader = shader
