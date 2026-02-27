@@ -289,14 +289,10 @@ export class SardinesScene {
 
   private initializeUnderwaterEnvironment(): void {
     const config: UnderwaterConfig = {
-      enableCorals: true,
-      enableRocks: true,
-      enableSeaweed: true,
-      enablePlankton: true,
-      coralCount: 8, // Reduced from 15
-      rockCount: 15, // Reduced from 25
-      seaweedCount: 20, // Reduced from 30
-      planktonCount: 30 // Reduced from 50
+      rayCount: 20,
+      rayRadius: 20,
+      rayHeight: 300,
+      rayOpacity: 0.12
     }
 
     this.underwaterEnvironment = new UnderwaterEnvironment(this.scene, config)

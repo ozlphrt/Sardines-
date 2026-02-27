@@ -1,39 +1,124 @@
 import * as THREE from 'three'
 
 export interface UnderwaterConfig {
-  // All environment objects removed - clean interface
+  rayCount?: number
+  rayRadius?: number
+  rayHeight?: number
+  rayColor?: number
+  rayOpacity?: number
 }
 
 export class UnderwaterEnvironment {
-  constructor(_scene: THREE.Scene, _config: UnderwaterConfig) {
-    // All environment objects removed - minimal constructor
+  private raysGroup: THREE.Group
+  private rayMaterial: THREE.ShaderMaterial
+  private config: Required<UnderwaterConfig>
+
+  constructor(private scene: THREE.Scene, config: UnderwaterConfig = {}) {
+    this.config = {
+      rayCount: config.rayCount ?? 15,
+      rayRadius: config.rayRadius ?? 15,
+      rayHeight: config.rayHeight ?? 250,
+      rayColor: config.rayColor ?? 0x87CEEB,
+      rayOpacity: config.rayOpacity ?? 0.15
+    }
+
+    this.raysGroup = new THREE.Group()
+    this.rayMaterial = this.createRayMaterial()
+    this.createRays()
+    this.scene.add(this.raysGroup)
   }
 
+  private createRayMaterial(): THREE.ShaderMaterial {
+    return new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      uniforms: {
+        uTime: { value: 0 },
+        uColor: { value: new THREE.Color(this.config.rayColor) },
+        uOpacity: { value: this.config.rayOpacity }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        varying float vDepth;
+        uniform float uTime;
 
+        void main() {
+          vUv = uv;
+          
+          // Add some sway to the rays
+          vec3 pos = position;
+          float sway = sin(uTime * 0.5 + position.x * 0.1) * 2.0;
+          pos.x += sway;
+          pos.z += sin(uTime * 0.3 + position.y * 0.1) * 2.0;
 
-  // Environment creation removed
+          vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+          vDepth = -mvPosition.z;
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        varying vec2 vUv;
+        varying float vDepth;
+        uniform vec3 uColor;
+        uniform float uOpacity;
+        uniform float uTime;
 
+        void main() {
+          // Horizontal fade (cylinder edges)
+          float alpha = smoothstep(0.0, 0.5, vUv.x) * smoothstep(1.0, 0.5, vUv.x);
+          
+          // Vertical fade (surface to deep)
+          float vFade = vUv.y; 
+          
+          // Pulsing effect
+          float pulse = 0.8 + 0.2 * sin(uTime * 0.2 + vUv.x * 10.0);
+          
+          gl_FragColor = vec4(uColor, alpha * vFade * uOpacity * pulse);
+        }
+      `
+    })
+  }
 
+  private createRays(): void {
+    const geometry = new THREE.CylinderGeometry(
+      this.config.rayRadius * 0.5,
+      this.config.rayRadius,
+      this.config.rayHeight,
+      16, 1, true
+    )
 
+    for (let i = 0; i < this.config.rayCount; i++) {
+      const mesh = new THREE.Mesh(geometry, this.rayMaterial)
 
+      mesh.position.set(
+        (Math.random() - 0.5) * 400,
+        this.config.rayHeight / 2 - 40,
+        (Math.random() - 0.5) * 400
+      )
 
+      mesh.rotation.x = (Math.random() - 0.5) * 0.2
+      mesh.rotation.z = (Math.random() - 0.5) * 0.2
 
+      const scale = 0.5 + Math.random() * 1.0
+      mesh.scale.set(scale, 1.0, scale)
 
+      this.raysGroup.add(mesh)
+    }
+  }
 
-
-
-
-
-
-
-
-
-
-  public update(_deltaTime: number): void {
-    // All environment objects removed - no animation needed
+  public update(deltaTime: number): void {
+    this.rayMaterial.uniforms.uTime.value += deltaTime
   }
 
   public dispose(): void {
-    // All environment objects removed - no cleanup needed
+    this.raysGroup.children.forEach(child => {
+      if (child instanceof THREE.Mesh) {
+        if (child.geometry) child.geometry.dispose()
+      }
+    })
+    this.rayMaterial.dispose()
+    this.scene.remove(this.raysGroup)
   }
 }
