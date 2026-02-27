@@ -353,11 +353,11 @@ export class Fish {
 
     // Update undulation frequency based on speed (proportional tail wagging)
     const speedRatio = this.movement.speed.currentSpeed / SpeedMode.BURST
-    undulation.speedMultiplier = 0.2 + speedRatio * 2.0 // Slows down significantly when not swimming fast
+    undulation.speedMultiplier = 0.05 + speedRatio * 3.5 // Much wider range: 0.05 to 3.55
 
     // Scale amplitude significantly based on speed to prevent excessive wagging when slow
-    const amplitudeScale = 0.4 + speedRatio * 0.6 // Increased base scale from 0.2
-    undulation.amplitude = this.behavior.undulationAmplitude * amplitudeScale * 0.8 // Increased from 0.5 multiplier
+    const amplitudeScale = 0.1 + speedRatio * 1.2 // Wider range: 0.1 to 1.3
+    undulation.amplitude = this.behavior.undulationAmplitude * amplitudeScale * 0.8
 
     // Update undulation phase
     const effectiveFrequency = undulation.frequency * undulation.speedMultiplier
