@@ -302,7 +302,7 @@ export const useSimulationStore = create<SimulationStore>()(
 
       predatorVisible: false,
       predatorPosition: { x: 0, y: 0, z: 0 },
-      sharkVisible: false,
+      sharkVisible: true,
       sharkPatrol: true,
 
       performance: defaultPerformance,

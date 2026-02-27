@@ -37,21 +37,38 @@ export class FlockManager {
   private initializeFish(): void {
     const bounds = this.config.bounds
     const behavior = this.config.behavior
+    const fishCount = this.config.fishCount
 
-    console.log('Initializing', this.config.fishCount, 'static fish')
+    console.log('Initializing', fishCount, 'fish in clusters')
 
-    for (let i = 0; i < this.config.fishCount; i++) {
-      const position = new THREE.Vector3(
-        bounds.min.x + Math.random() * (bounds.max.x - bounds.min.x),
-        bounds.min.y + Math.random() * (bounds.max.y - bounds.min.y),
-        bounds.min.z + Math.random() * (bounds.max.z - bounds.min.z)
-      )
+    // Create 4 cluster centers within the bounds
+    const clusterCount = 4
+    const clusters: THREE.Vector3[] = []
+
+    for (let i = 0; i < clusterCount; i++) {
+      clusters.push(new THREE.Vector3(
+        (Math.random() - 0.5) * (bounds.max.x - bounds.min.x) * 0.6,
+        (Math.random() - 0.5) * (bounds.max.y - bounds.min.y) * 0.4,
+        (Math.random() - 0.5) * (bounds.max.z - bounds.min.z) * 0.6
+      ))
+    }
+
+    for (let i = 0; i < fishCount; i++) {
+      // Pick a cluster
+      const clusterCenter = clusters[i % clusterCount]
+
+      // Spawn around the cluster with some jitter
+      const position = clusterCenter.clone().add(new THREE.Vector3(
+        (Math.random() - 0.5) * 40,
+        (Math.random() - 0.5) * 20,
+        (Math.random() - 0.5) * 40
+      ))
 
       const fish = new Fish(position, behavior)
       this.fish.push(fish)
     }
 
-    console.log('Created', this.fish.length, 'static fish')
+    console.log('Created', this.fish.length, 'clustered fish')
   }
 
   /**
