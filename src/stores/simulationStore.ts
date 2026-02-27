@@ -65,6 +65,7 @@ export interface RenderingParams {
   emissiveIntensity: number
   fogDensity: number
   fogColor: string
+  selectedSpecies: string
 }
 
 export interface WallParams {
@@ -138,9 +139,13 @@ export interface SimulationStore {
   // Camera state
   camera: CameraState
 
+  // Predator state
+  predatorVisible: boolean
+  predatorPosition: { x: number; y: number; z: number }
+
   // Actions
   actions: {
-    updateParameter: (category: keyof SimulationStore['parameters'], param: string, value: number) => void
+    updateParameter: (category: keyof SimulationStore['parameters'], param: string, value: number | string) => void
     togglePause: () => void
     resetSimulation: () => void
     loadPreset: (preset: string) => void
@@ -222,6 +227,7 @@ const defaultRendering: RenderingParams = {
   emissiveIntensity: 0.0,
   fogDensity: 0.012,
   fogColor: '#081621',
+  selectedSpecies: 'sardine',
 }
 
 const defaultWalls: WallParams = {
@@ -289,6 +295,9 @@ export const useSimulationStore = create<SimulationStore>()(
         walls: defaultWalls,
         seaFloor: defaultSeaFloor,
       },
+
+      predatorVisible: false,
+      predatorPosition: { x: 0, y: 0, z: 0 },
 
       performance: defaultPerformance,
 

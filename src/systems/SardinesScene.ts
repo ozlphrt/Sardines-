@@ -6,6 +6,7 @@ import { FishRenderer, FishRenderConfig } from './FishRenderer.js'
 import { UnderwaterEnvironment, UnderwaterConfig } from './UnderwaterEnvironment.js'
 // Wall system removed
 import { SeaFloorModel, SeaFloorConfig } from './SeaFloorModel.js'
+import { SharkRenderer } from './SharkRenderer.js'
 import { useSimulationStore } from '../stores/simulationStore.js'
 
 export interface SceneStats {
@@ -26,6 +27,7 @@ export class SardinesScene {
   private controls: OrbitControls
   private flockManager: FlockManager | null = null
   private fishRenderer: FishRenderer | null = null
+  private sharkRenderer: SharkRenderer | null = null
   private underwaterEnvironment: UnderwaterEnvironment | null = null
   // Wall system removed
   private seaFloorModel: SeaFloorModel | null = null
@@ -97,6 +99,9 @@ export class SardinesScene {
     // Initialize fish renderer
     this.initializeFishRenderer()
 
+    // Initialize shark renderer
+    this.sharkRenderer = new SharkRenderer(this.scene)
+
     // Initialize underwater environment
     this.initializeUnderwaterEnvironment()
 
@@ -133,6 +138,18 @@ export class SardinesScene {
 
     if (target) {
       this.flockManager.triggerPredator(target)
+
+      // Update store for shark renderer
+      useSimulationStore.setState({
+        predatorVisible: true,
+        predatorPosition: { x: target.x, y: target.y, z: target.z }
+      })
+
+      // Hide shark after duration (matching bait ball duration)
+      const duration = useSimulationStore.getState().parameters.behavior.baitBallDuration * 1000
+      setTimeout(() => {
+        useSimulationStore.setState({ predatorVisible: false })
+      }, duration)
     }
   }
 
@@ -409,6 +426,11 @@ export class SardinesScene {
       this.underwaterEnvironment.update(deltaTime)
     }
 
+    // Update shark renderer
+    if (this.sharkRenderer) {
+      this.sharkRenderer.update(deltaTime)
+    }
+
     // Wall system removed - no walls or grids
 
     // Update special cameras (follow/action/single-fish modes)
@@ -683,8 +705,8 @@ export class SardinesScene {
       memory: Math.round((performance as any).memory?.usedJSHeapSize / 1024 / 1024 || 0),
       fishCount: flockStats?.activeFish || 0,
       averageSpeed: flockStats?.averageSpeed || 0,
-      visibleFish: rendererStats?.visibleFish || 0,
-      cullingEnabled: rendererStats?.cullingEnabled || false,
+      visibleFish: rendererStats?.visibleFishCount || 0,
+      cullingEnabled: true,
       averageSize: flockStats?.averageSize || 1.0,
       sizeRange: flockStats?.sizeRange || { min: 1.0, max: 1.0 }
     }
@@ -782,7 +804,24 @@ export class SardinesScene {
               this.scene.fog.density = r.fogDensity
             }
           }
+
+          // Handle Species switching
+          if (r.selectedSpecies !== undefined) {
+            if ((this as any)._currentSpecies !== r.selectedSpecies) {
+              (this as any)._currentSpecies = r.selectedSpecies
+              if (this.fishRenderer) {
+                this.fishRenderer.switchSpecies(r.selectedSpecies)
+              }
+            }
+          }
         }
+      }
+
+      // Sync shark state
+      if (this.sharkRenderer) {
+        this.sharkRenderer.setVisibility(state.predatorVisible)
+        const pos = state.predatorPosition
+        this.sharkRenderer.setPosition(new THREE.Vector3(pos.x, pos.y, pos.z))
       }
 
       // Update Swimmable Area Box visibility

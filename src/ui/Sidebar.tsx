@@ -144,6 +144,20 @@ const Sidebar: React.FC = () => {
       </Folder>
 
       <Folder title="Environment & Render" initialOpen={false}>
+        <div className="dat-gui-row">
+          <div className="dat-gui-label">Species</div>
+          <div className="dat-gui-controller px-1">
+            <select
+              className="bg-[#111] text-[#ccc] border-none outline-none text-xs w-full py-0.5 cursor-pointer hover:bg-[#222]"
+              value={parameters.rendering.selectedSpecies}
+              onChange={(e) => actions.updateParameter('rendering', 'selectedSpecies', e.target.value)}
+            >
+              <option value="sardine">Sardine (Standard)</option>
+              <option value="tropical">Tropical (Animated)</option>
+              <option value="school">Fish School</option>
+            </select>
+          </div>
+        </div>
         <Slider
           label="Fish Count"
           value={parameters.rendering.fishCount}
