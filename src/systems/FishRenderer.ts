@@ -192,9 +192,9 @@ export class FishRenderer {
         float headZ = 0.8;
         float tailZ = -1.15;
         float tailWeight = clamp((headZ - position.z) / (headZ - tailZ), 0.0, 1.0);
-        // waveIntensity is now used as a shaping factor, 0.4 for subtlety
-        float waveIntensity = tailWeight * tailWeight * 0.4;
-        // Apply sine oscillation (instanceWiggle is the phase) with a significant amplitude reduction
+        // waveIntensity is now ultra-minimized for subtle swimming, 0.15 for maximum realism
+        float waveIntensity = tailWeight * tailWeight * 0.15;
+        // Apply sine oscillation (instanceWiggle is the phase)
         transformed.x += sin(instanceWiggle) * waveIntensity;
         `
       )
