@@ -284,7 +284,7 @@ export class SardinesScene {
       maxFishCount: 2500, // Increased max fish count for larger schools
       scale: 3.0, // Even bigger scale for visibility
       enableShadows: false, // Disable shadows to avoid shader issues
-      enableFrustumCulling: true, // Enable frustum culling for performance
+      enableFrustumCulling: false, // MUST be false for InstancedMesh - base geometry bounding sphere is at origin and causes all instances to cull when camera moves
       enableLOD: true, // Enable Level of Detail for distant fish
       lodDistance: 200 // Reduced LOD distance for better performance
     }
