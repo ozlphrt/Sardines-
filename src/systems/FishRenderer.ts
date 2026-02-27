@@ -121,6 +121,7 @@ export class FishRenderer {
       const instancedMesh = new THREE.InstancedMesh(geometry, material, this.config.maxFishCount)
       instancedMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.config.maxFishCount * 3), 3)
       instancedMesh.geometry.setAttribute('instanceWiggle', new THREE.InstancedBufferAttribute(new Float32Array(this.config.maxFishCount), 1))
+      instancedMesh.geometry.setAttribute('instanceThrust', new THREE.InstancedBufferAttribute(new Float32Array(this.config.maxFishCount), 1))
 
       this.setupCustomShader(material)
 
@@ -164,6 +165,7 @@ export class FishRenderer {
       shader.uniforms.uTime = { value: 0 }
       shader.vertexShader = `
         attribute float instanceWiggle;
+        attribute float instanceThrust;
         ${shader.vertexShader}
       `.replace(
         '#include <begin_vertex>',
@@ -172,7 +174,8 @@ export class FishRenderer {
         float headZ = 0.8;
         float tailZ = -1.15;
         float tailWeight = clamp((headZ - position.z) / (headZ - tailZ), 0.0, 1.0);
-        float waveIntensity = tailWeight * tailWeight * 0.15;
+        // Modulate waveIntensity by thrust so tail goes still during glide
+        float waveIntensity = tailWeight * tailWeight * 0.15 * instanceThrust;
         transformed.x += sin(instanceWiggle) * waveIntensity;
         `
       )
@@ -211,8 +214,13 @@ export class FishRenderer {
       this.matrix.compose(fishInstance.physics.position, this.tempQuaternion, this.tempScale)
       model.mesh.setMatrixAt(instanceIndex, this.matrix)
 
+      // Write undulation phase and thrust intensity per-instance
       const wiggleAttr = model.mesh.geometry.getAttribute('instanceWiggle') as THREE.InstancedBufferAttribute
-      wiggleAttr.setX(instanceIndex, fishInstance.getUndulationPhase())
+      const undulPhase = fishInstance.movement.undulation.phase
+      const thrustIntensity = fishInstance.movement.swimCycle.thrustIntensity
+      wiggleAttr.setX(instanceIndex, undulPhase)
+      const thrustAttr = model.mesh.geometry.getAttribute('instanceThrust') as THREE.InstancedBufferAttribute
+      thrustAttr.setX(instanceIndex, thrustIntensity)
 
       // Base color logic
       const brightness = 0.8 + Math.random() * 0.4

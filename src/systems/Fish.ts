@@ -65,6 +65,15 @@ export interface CoreMovement {
     noiseOffset: number // Random starting value for noise
     verticalPhase: number // Random starting phase for vertical oscillation
   }
+
+  // BURST-AND-GLIDE SWIM CYCLE
+  swimCycle: {
+    phase: 'thrust' | 'glide'    // Current phase of swim cycle
+    timer: number                // Time elapsed in current phase
+    thrustDuration: number       // How long the tail-wag burst lasts (s)
+    glideDuration: number        // How long the glide phase lasts (s)
+    thrustIntensity: number      // 0-1, used by shader to modulate waveIntensity
+  }
 }
 
 /**
@@ -229,6 +238,15 @@ export class Fish {
       drift: {
         noiseOffset: Math.random() * 1000,
         verticalPhase: Math.random() * Math.PI * 2
+      },
+
+      // Burst-and-glide swim cycle (each fish has random offsets)
+      swimCycle: {
+        phase: Math.random() > 0.5 ? 'thrust' : 'glide',
+        timer: Math.random() * 1.5, // Stagger so not all fish sync at once
+        thrustDuration: 0.6 + Math.random() * 0.6,  // 0.6–1.2s of tail wagging
+        glideDuration: 0.8 + Math.random() * 1.2,   // 0.8–2.0s of gliding
+        thrustIntensity: 1.0
       }
     }
 
@@ -359,27 +377,62 @@ export class Fish {
   }
 
   /**
-   * P1.1: UNDULATION - S-shaped body waves for propulsion
+   * P1.1: UNDULATION - S-shaped body waves for propulsion (Burst-and-Glide)
    */
   private updateUndulation(deltaTime: number, _currentTime: number): void {
     const undulation = this.movement.undulation
+    const cycle = this.movement.swimCycle
 
-    // Update undulation frequency based on speed (proportional tail wagging)
-    const speedRatio = this.movement.speed.currentSpeed / SpeedMode.BURST
-    undulation.speedMultiplier = 0.05 + speedRatio * 1.2 // Reduced from 3.5 for more graceful motion
+    // --- SWIM CYCLE TIMER ---
+    cycle.timer += deltaTime
 
-    // Scale amplitude significantly based on speed to prevent excessive wagging when slow
-    const amplitudeScale = 0.1 + speedRatio * 1.2 // Wider range: 0.1 to 1.3
-    undulation.amplitude = this.behavior.undulationAmplitude * amplitudeScale * 0.8
+    const currentDuration = cycle.phase === 'thrust' ? cycle.thrustDuration : cycle.glideDuration
 
-    // Update undulation phase
-    const effectiveFrequency = undulation.frequency * undulation.speedMultiplier
-    undulation.phase += effectiveFrequency * Math.PI * 2 * deltaTime
-
-    // Keep phase in range [0, 2π]
-    if (undulation.phase > Math.PI * 2) {
-      undulation.phase -= Math.PI * 2
+    if (cycle.timer >= currentDuration) {
+      cycle.timer = 0
+      if (cycle.phase === 'thrust') {
+        // Switch to glide: stop wagging, momentum carries us forward
+        cycle.phase = 'glide'
+        // Let the speed decay naturally during glide
+      } else {
+        // Switch to thrust: start wagging again, accelerate
+        cycle.phase = 'thrust'
+        // Kick back to near-cruising speed on new burst
+        const baseSpeed = this.movement.speed.currentMode * this.size.speedMultiplier
+        this.movement.speed.targetSpeed = baseSpeed
+      }
     }
+
+    // --- THRUST INTENSITY (smooth transition) ---
+    if (cycle.phase === 'thrust') {
+      // Ramp up quickly at start of thrust, hold high
+      const rampProgress = Math.min(1.0, cycle.timer / 0.15) // 0.15s ramp-up
+      cycle.thrustIntensity = rampProgress
+    } else {
+      // Ramp down quickly at start of glide
+      const rampProgress = Math.min(1.0, cycle.timer / 0.25) // 0.25s ramp-down
+      cycle.thrustIntensity = 1.0 - rampProgress
+    }
+
+    // During glide, let speed decay toward resting
+    if (cycle.phase === 'glide') {
+      const glideDecay = 0.5 // How fast speed decays while gliding
+      this.movement.speed.targetSpeed = Math.max(
+        SpeedMode.RESTING * this.size.speedMultiplier,
+        this.movement.speed.targetSpeed - glideDecay * deltaTime
+      )
+    }
+
+    // --- UNDULATION FREQUENCY & AMPLITUDE modulated by thrustIntensity ---
+    // Only wag tail meaningfully when thrusting
+    const speedRatio = this.movement.speed.currentSpeed / SpeedMode.BURST
+    undulation.speedMultiplier = (0.05 + speedRatio * 1.2) * Math.max(0.05, cycle.thrustIntensity)
+    undulation.amplitude = this.behavior.undulationAmplitude * Math.max(0.03, cycle.thrustIntensity) * 0.8
+
+    // Update undulation phase (keeps running even in glide so it's ready)
+    const effectiveFrequency = undulation.frequency * (0.05 + speedRatio * 1.2)
+    undulation.phase += effectiveFrequency * Math.PI * 2 * deltaTime
+    if (undulation.phase > Math.PI * 2) undulation.phase -= Math.PI * 2
   }
 
   /**
