@@ -286,12 +286,13 @@ export class FlockManager {
       }
     })
 
-    if (!bestCell || bestCell.length === 0) return null
+    if (!bestCell) return null
+    const cell: Fish[] = bestCell
 
     // Calculate center of this cell
     const center = new THREE.Vector3()
-    bestCell.forEach(f => center.add(f.physics.position))
-    center.divideScalar(bestCell.length)
+    cell.forEach(f => center.add(f.physics.position))
+    center.divideScalar(cell.length)
 
     return center
   }
