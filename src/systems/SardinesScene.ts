@@ -116,7 +116,8 @@ export class SardinesScene {
   }
 
   private onClick(event: MouseEvent): void {
-    if (!this.flockManager) return
+    // Only trigger predator event on Ctrl+Click
+    if (!this.flockManager || !event.ctrlKey) return
 
     // Calculate mouse position in normalized device coordinates
     this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1

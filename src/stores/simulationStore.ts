@@ -264,12 +264,12 @@ const defaultCamera: CameraState = {
 }
 
 const defaultUI: UIState = {
-  sidebarVisible: true,
+  sidebarVisible: false, // Default to off as requested
   hudVisible: true,
   fullscreen: false,
   activeSection: 'behavior',
   selectedBehaviorPreset: 'default',
-  selectedCameraPreset: 'default',
+  selectedCameraPreset: 'follow', // Default to single fish follow camera
 }
 
 // Store creation
