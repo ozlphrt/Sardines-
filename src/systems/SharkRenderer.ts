@@ -5,7 +5,6 @@ export class SharkRenderer {
     private scene: THREE.Scene
     private model: THREE.Group | null = null
     private mixer: THREE.AnimationMixer | null = null
-    private currentAction: THREE.AnimationAction | null = null
     private isLoaded: boolean = false
     private visible: boolean = false
     private targetPosition: THREE.Vector3 = new THREE.Vector3(0, -10, 50)
@@ -21,33 +20,47 @@ export class SharkRenderer {
         try {
             const loader = new GLTFLoader()
             const basePath = (import.meta as any).env.BASE_URL || '/'
-
-            // Using the Great White Shark model
             const modelPath = `${basePath}models/great_white_shark/scene.gltf`
 
             const gltf = await loader.loadAsync(modelPath)
 
             this.model = gltf.scene
-
-            // native scale of the great white model seems small in some exports
-            // User requested 4X larger than 0.5 -> 2.0
             this.model.scale.set(2.0, 2.0, 2.0)
-            // Adjust model orientation if needed (e.g., if it loads facing the wrong way)
-            // A common correction for GLTF models is to rotate 180 degrees around the Y-axis
-            this.model.rotation.y = Math.PI;
-
-            // Set initial visibility from the current state
+            this.model.position.copy(this.targetPosition)
             this.model.visible = this.visible
+
+            // Force every descendant to be visible with correct materials
+            this.model.traverse((child) => {
+                child.visible = true
+                if ((child as THREE.Mesh).isMesh) {
+                    const mesh = child as THREE.Mesh
+                    mesh.frustumCulled = false
+                    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+                    mats.forEach((mat: THREE.Material) => {
+                        mat.side = THREE.DoubleSide
+                        mat.needsUpdate = true
+                    })
+                }
+            })
+
             this.scene.add(this.model)
+
+            // Add a bright red wireframe box so the shark's position is always visible
+            const debugBox = new THREE.Mesh(
+                new THREE.BoxGeometry(4, 2, 8),
+                new THREE.MeshBasicMaterial({ color: 0xff2200, wireframe: true })
+            )
+            this.model.add(debugBox)
 
             // Setup animations
             if (gltf.animations && gltf.animations.length > 0) {
                 this.mixer = new THREE.AnimationMixer(this.model)
-                this.currentAction = this.mixer.clipAction(gltf.animations[0])
-                this.currentAction.play()
+                const action = this.mixer.clipAction(gltf.animations[0])
+                action.play()
             }
 
             this.isLoaded = true
+            console.log('SharkRenderer: ready. visible=', this.model.visible, 'pos=', this.model.position)
         } catch (error) {
             console.error('SharkRenderer: Failed to load shark model:', error)
         }
@@ -62,7 +75,6 @@ export class SharkRenderer {
 
     public setPosition(position: THREE.Vector3): void {
         this.targetPosition.copy(position)
-        // Snap to position on first call so shark doesn't crawl from origin
         if (!this.hasBeenPositioned) {
             this.hasBeenPositioned = true
             if (this.model) this.model.position.copy(position)
@@ -76,21 +88,15 @@ export class SharkRenderer {
     public update(deltaTime: number): void {
         if (!this.isLoaded || !this.model || !this.visible) return
 
-        // Update animation
-        if (this.mixer) {
-            this.mixer.update(deltaTime)
-        }
+        if (this.mixer) this.mixer.update(deltaTime)
 
-        // Smoothly follow the target position
+        // Move toward target
         this.model.position.lerp(this.targetPosition, this.lerpSpeed)
 
-        // Face movement direction, then reapply model-specific rotation offset
+        // Face movement direction
         if (this.model.position.distanceTo(this.targetPosition) > 1.0) {
-            const lookTarget = this.targetPosition.clone()
-            // Temporarily clear rotation offset to get a clean lookAt
             this.model.rotation.set(0, 0, 0)
-            this.model.lookAt(lookTarget)
-            // Reapply the 180° Y offset so the shark faces forward in its own mesh space
+            this.model.lookAt(this.targetPosition)
             this.model.rotateY(Math.PI)
         }
     }
@@ -101,11 +107,8 @@ export class SharkRenderer {
             this.model.traverse((child) => {
                 if (child instanceof THREE.Mesh) {
                     child.geometry.dispose()
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach(m => m.dispose())
-                    } else {
-                        child.material.dispose()
-                    }
+                    const mats = Array.isArray(child.material) ? child.material : [child.material]
+                    mats.forEach(m => m.dispose())
                 }
             })
         }
