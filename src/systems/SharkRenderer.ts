@@ -28,9 +28,20 @@ export class SharkRenderer {
             const gltf = await loader.loadAsync(modelPath)
 
             this.model = gltf.scene
-            this.model.scale.set(0.5, 0.5, 0.5) // Increased scale back up (2x larger than 0.25)
+
+            // Debugging scale/visibility
+            const box = new THREE.Box3().setFromObject(this.model)
+            const size = new THREE.Vector3()
+            box.getSize(size)
+            console.log('SharkRenderer: Original model size:', size)
+
+            this.model.scale.set(10.0, 10.0, 10.0) // TEMPORARILY set to much larger scale to test visibility
             this.model.visible = false
             this.scene.add(this.model)
+
+            const newBox = new THREE.Box3().setFromObject(this.model)
+            newBox.getSize(size)
+            console.log('SharkRenderer: Scaled model size:', size)
 
             // Setup animations
             if (gltf.animations && gltf.animations.length > 0) {
