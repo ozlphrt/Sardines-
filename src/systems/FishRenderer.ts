@@ -30,6 +30,9 @@ export class FishRenderer {
   private tempColor: THREE.Color = new THREE.Color()
   private tempScale: THREE.Vector3 = new THREE.Vector3()
 
+  // Prevent concurrent loads of the same species
+  private loadingPromises: Map<string, Promise<SpeciesModel | null>> = new Map()
+
   // Performance optimization properties
   private visibleFishCount: number = 0
   private matrix: THREE.Matrix4 = new THREE.Matrix4()
@@ -70,84 +73,103 @@ export class FishRenderer {
 
   private async getOrLoadSpecies(key: string): Promise<SpeciesModel | null> {
     if (this.species.has(key)) return this.species.get(key)!
+    if (this.loadingPromises.has(key)) return this.loadingPromises.get(key)!
 
-    try {
-      const loader = new GLTFLoader()
-      const basePath = (import.meta as any).env.BASE_URL || '/'
+    const loadPromise = (async () => {
+      try {
+        const loader = new GLTFLoader()
+        const basePath = (import.meta as any).env.BASE_URL || '/'
 
-      let modelDir = ''
-      let baseScale = 1.0
+        let modelDir = ''
+        let baseScale = 1.0
 
-      switch (key) {
-        case 'tropical':
-          modelDir = 'models/animated_swimming_tropical_fish_school_loop/'
-          baseScale = 0.0012 // Reduced from 0.003 to match sardine size better
-          break
-        case 'school':
-          modelDir = 'models/school_of_fish/'
-          baseScale = 0.0012 // Reduced from 0.003 to match sardine size better
-          break
-        case 'sardine':
-        default:
-          modelDir = 'assets/fish-model/'
-          baseScale = 1.0
-          break
+        switch (key) {
+          case 'tropical':
+            modelDir = 'models/animated_swimming_tropical_fish_school_loop/'
+            baseScale = 0.0012 // Reduced from 0.003 to match sardine size better
+            break
+          case 'school':
+            modelDir = 'models/school_of_fish/'
+            baseScale = 0.0012 // Reduced from 0.003 to match sardine size better
+            break
+          case 'sardine':
+          default:
+            modelDir = 'assets/fish-model/'
+            baseScale = 1.0
+            break
+        }
+
+        loader.setPath(`${basePath}${modelDir}`)
+        const gltf = await loader.loadAsync('scene.gltf')
+
+        let fishMesh: THREE.Mesh | null = null
+        gltf.scene.traverse((child) => {
+          if (child instanceof THREE.Mesh && !fishMesh) fishMesh = child
+        })
+
+        if (!fishMesh) throw new Error(`No mesh found for ${key}`)
+
+        const geometry = (fishMesh as THREE.Mesh).geometry.clone()
+        const originalMaterial = (fishMesh as THREE.Mesh).material
+        const material = Array.isArray(originalMaterial) ? originalMaterial[0].clone() : originalMaterial.clone()
+
+        if (material instanceof THREE.MeshStandardMaterial) {
+          const r = useSimulationStore.getState().parameters.rendering
+          material.side = THREE.DoubleSide
+          material.metalness = r.metalness
+          material.roughness = r.roughness
+          material.envMapIntensity = r.envMapIntensity
+          material.emissive.setHex(key === 'sardine' ? 0xADDEFF : 0x000000)
+          material.emissiveIntensity = r.emissiveIntensity
+          material.fog = true // Explicitly enable fog
+        }
+
+        const instancedMesh = new THREE.InstancedMesh(geometry, material, this.config.maxFishCount)
+        instancedMesh.count = 0 // Start with zero instances to avoid "origin flash"
+        instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+
+        // Initialize all instances with scale zero as a fail-safe
+        const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0)
+        for (let i = 0; i < this.config.maxFishCount; i++) {
+          instancedMesh.setMatrixAt(i, zeroMatrix)
+        }
+        instancedMesh.instanceMatrix.needsUpdate = true
+
+        instancedMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.config.maxFishCount * 3), 3)
+        instancedMesh.geometry.setAttribute('instanceWiggle', new THREE.InstancedBufferAttribute(new Float32Array(this.config.maxFishCount), 1))
+        instancedMesh.geometry.setAttribute('instanceThrust', new THREE.InstancedBufferAttribute(new Float32Array(this.config.maxFishCount), 1))
+
+        this.setupCustomShader(material)
+
+        instancedMesh.frustumCulled = this.config.enableFrustumCulling
+        instancedMesh.castShadow = this.config.enableShadows
+        instancedMesh.receiveShadow = this.config.enableShadows
+        instancedMesh.visible = false // Start hidden
+
+        this.scene.add(instancedMesh)
+
+        const speciesModel: SpeciesModel = {
+          geometry,
+          material,
+          mesh: instancedMesh,
+          baseScale,
+          loaded: true
+        }
+
+        this.species.set(key, speciesModel)
+        this.updateTextureSettings(material)
+
+        return speciesModel
+      } catch (error) {
+        console.error(`FishRenderer: Failed to load ${key}:`, error)
+        return null
+      } finally {
+        this.loadingPromises.delete(key)
       }
+    })()
 
-      loader.setPath(`${basePath}${modelDir}`)
-      const gltf = await loader.loadAsync('scene.gltf')
-
-      let fishMesh: THREE.Mesh | null = null
-      gltf.scene.traverse((child) => {
-        if (child instanceof THREE.Mesh && !fishMesh) fishMesh = child
-      })
-
-      if (!fishMesh) throw new Error(`No mesh found for ${key}`)
-
-      const geometry = (fishMesh as THREE.Mesh).geometry.clone()
-      const originalMaterial = (fishMesh as THREE.Mesh).material
-      const material = Array.isArray(originalMaterial) ? originalMaterial[0].clone() : originalMaterial.clone()
-
-      if (material instanceof THREE.MeshStandardMaterial) {
-        const r = useSimulationStore.getState().parameters.rendering
-        material.side = THREE.DoubleSide
-        material.metalness = r.metalness
-        material.roughness = r.roughness
-        material.envMapIntensity = r.envMapIntensity
-        material.emissive.setHex(key === 'sardine' ? 0xADDEFF : 0x000000)
-        material.emissiveIntensity = r.emissiveIntensity
-      }
-
-      const instancedMesh = new THREE.InstancedMesh(geometry, material, this.config.maxFishCount)
-      instancedMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.config.maxFishCount * 3), 3)
-      instancedMesh.geometry.setAttribute('instanceWiggle', new THREE.InstancedBufferAttribute(new Float32Array(this.config.maxFishCount), 1))
-      instancedMesh.geometry.setAttribute('instanceThrust', new THREE.InstancedBufferAttribute(new Float32Array(this.config.maxFishCount), 1))
-
-      this.setupCustomShader(material)
-
-      instancedMesh.frustumCulled = this.config.enableFrustumCulling
-      instancedMesh.castShadow = this.config.enableShadows
-      instancedMesh.receiveShadow = this.config.enableShadows
-      instancedMesh.visible = false // Start hidden
-
-      this.scene.add(instancedMesh)
-
-      const speciesModel: SpeciesModel = {
-        geometry,
-        material,
-        mesh: instancedMesh,
-        baseScale,
-        loaded: true
-      }
-
-      this.species.set(key, speciesModel)
-      this.updateTextureSettings(material)
-
-      return speciesModel
-    } catch (error) {
-      console.error(`FishRenderer: Failed to load ${key}:`, error)
-      return null
-    }
+    this.loadingPromises.set(key, loadPromise)
+    return loadPromise
   }
 
   public setCamera(_camera: THREE.Camera): void {
@@ -171,17 +193,24 @@ export class FishRenderer {
         '#include <begin_vertex>',
         `
         #include <begin_vertex>
-        float headZ = 0.8;
-        float tailZ = -1.15;
-        // tailWeight: 0 at head, 1 at tail tip
-        float tailWeight = clamp((headZ - position.z) / (headZ - tailZ), 0.0, 1.0);
-        // Traveling wave along spine: each vertebra is at its own phase
-        // waveFreq controls how many S-bends fit along the body (2.5 = roughly one full S-wave)
-        float waveFreq = 2.5;
-        float spinePhase = instanceWiggle + position.z * waveFreq;
-        // Amplitude grows quadratically toward tail (head barely moves, tail bends a lot)
-        float waveIntensity = tailWeight * tailWeight * 0.18 * instanceThrust;
-        transformed.x += sin(spinePhase) * waveIntensity;
+        float headZ = 0.84;
+        float tailZ = -1.16;
+        float tailWeight = smoothstep(0.45, tailZ, position.z);
+        float waveNumber = 2.4;
+        float spinePhase = instanceWiggle + (position.z - headZ) * waveNumber;
+        
+        // Stillness factor from thrust (instanceThrust is 0 when still, 0.35 when cruising, up to 1.0 when fast)
+        float stillFactor = smoothstep(0.04, 0.18, instanceThrust);
+        float vigor = clamp((instanceThrust - 0.25) / 0.75, 0.0, 1.0);
+        
+        // Biomechanics: wider stroke when slower, narrower when faster
+        float slowStroke = 0.40;
+        float fastStroke = 0.16;
+        float strokeAmp = mix(slowStroke, fastStroke, vigor) * stillFactor;
+        float waveDisplacement = sin(spinePhase) * tailWeight * strokeAmp;
+        float bodyBend = sin(spinePhase - 0.7) * tailWeight * mix(0.07, 0.025, vigor) * stillFactor;
+        
+        transformed.x += waveDisplacement + bodyBend;
         `
       )
       material.userData.shader = shader
@@ -213,7 +242,7 @@ export class FishRenderer {
       const instanceIndex = meshInstances[speciesIndex]
 
       this.tempQuaternion.setFromEuler(fishInstance.physics.rotation)
-      const scaleVal = r.modelScale * model.baseScale
+      const scaleVal = r.modelScale * model.baseScale * fishInstance.getSizeFactor()
       this.tempScale.set(scaleVal, scaleVal, scaleVal)
 
       this.matrix.compose(fishInstance.physics.position, this.tempQuaternion, this.tempScale)
@@ -236,13 +265,22 @@ export class FishRenderer {
       this.visibleFishCount++
     }
 
-    // Update meshes and set effective count
+    // Explicitly zero-scale all unused slots in the buffer to guarantee they are invisible
+    // This prevents "dead sardines" at the origin if count culling fails in WebGL
+    const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0)
     speciesMeshes.forEach((model, idx) => {
-      model.mesh.count = meshInstances[idx]
+      const activeCount = meshInstances[idx]
+      for (let i = activeCount; i < this.config.maxFishCount; i++) {
+        model.mesh.setMatrixAt(i, zeroMatrix)
+      }
+
+      model.mesh.count = activeCount
       model.mesh.instanceMatrix.needsUpdate = true
       if (model.mesh.instanceColor) model.mesh.instanceColor.needsUpdate = true
       const wiggleAttr = model.mesh.geometry.getAttribute('instanceWiggle')
       if (wiggleAttr) wiggleAttr.needsUpdate = true
+      const thrustAttr = model.mesh.geometry.getAttribute('instanceThrust')
+      if (thrustAttr) thrustAttr.needsUpdate = true
     })
   }
 

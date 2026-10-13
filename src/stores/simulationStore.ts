@@ -47,6 +47,13 @@ export interface BehaviorParams {
   seabedAvoidanceStrength: number
   obstacleLookAheadDistance: number
   preferredDepthBand: number
+
+  // Oceanic Whirlpool / Cyclone
+  whirlpoolStrength?: number
+  whirlpoolRadius?: number
+
+  // Predator Scale
+  sharkScale?: number
 }
 
 export interface PhysicsParams {
@@ -65,7 +72,11 @@ export interface RenderingParams {
   emissiveIntensity: number
   fogDensity: number
   fogColor: string
+  particleCount: number
+  particleOpacity: number
+  blueFilterIntensity: number
   selectedSpecies: string
+  resolutionScale?: number
 }
 
 export interface WallParams {
@@ -144,6 +155,17 @@ export interface SimulationStore {
   predatorPosition: { x: number; y: number; z: number }
   sharkVisible: boolean
   sharkPatrol: boolean
+  // Camera toast notification
+  cameraToast: {
+    preset: string
+    name: string
+    desc: string
+    icon: string
+    timestamp: number
+  } | null
+
+  // Oceanic Whirlpool trigger
+  whirlpoolTrigger: number
 
   // Actions
   actions: {
@@ -152,8 +174,10 @@ export interface SimulationStore {
     setSharkVisible: (visible: boolean) => void
     setSharkPatrol: (patrol: boolean) => void
     resetSimulation: () => void
+    triggerWhirlpool: () => void
     loadPreset: (preset: string) => void
     loadCameraPreset: (preset: string) => void
+    clearCameraToast: () => void
     toggleSidebar: () => void
     toggleHUD: () => void
     setActiveSection: (section: string) => void
@@ -164,39 +188,40 @@ export interface SimulationStore {
     updateWallParameter: (param: keyof WallParams, value: number | boolean | string) => void
     toggleSeaFloor: () => void
     updateSeaFloorParameter: (param: keyof SeaFloorParams, value: number | boolean) => void
+    cycleCamera: () => void
   }
 }
 
-// Default values - Updated for Phase 1 + Flocking system
+// Default values - Updated for realistic GPU flocking and Reynolds Boids
 const defaultBehavior: BehaviorParams = {
   // Flocking parameters
-  cohesionStrength: 0.9,
-  separationStrength: 2.5,
-  alignmentStrength: 0.7,
-  neighborRadius: 60.0,
-  separationRadius: 20.0,
-  collisionRadius: 8.0,
+  cohesionStrength: 1.5,
+  separationStrength: 2.2, // Boosted to eliminate overlaps and maintain 3D breathing space
+  alignmentStrength: 1.0, // Loosened from 1.8 so fish do NOT freeze into a rigid brick
+  neighborRadius: 40.0,
+  separationRadius: 10.5, // Generous personal space bubble
+  collisionRadius: 4.5,
 
   // Force balancing
-  individualWeight: 0.1, // Stronger social following
-  socialWeight: 0.9,
+  individualWeight: 0.35, // Harmonic 3D wave weaving prevents straight-line marching
+  socialWeight: 0.7,
 
   // Core movement parameters
-  bodyLength: 5.0, // Bigger fish for better visibility
-  maxTurnRate: 2.5, // Much faster turning
+  bodyLength: 5.0,
+  maxTurnRate: 2.5,
   maxRollAngle: 0.6,
   rollSpeed: 5.0,
 
   // Undulation parameters
-  undulationFrequency: 4.5,
-  undulationAmplitude: 0.3,
+  undulationFrequency: 3.2,
+  undulationAmplitude: 0.22,
 
   // Speed parameters
-  accelerationRate: 8.0, // Very snappy speed changes
+  accelerationRate: 8.0,
 
   // Direction change parameters
-  directionChangeInterval: 12.0, // Very infrequent changes, travel further
-  turnSmoothness: 0.98, // Very smooth transitions
+  directionChangeInterval: 12.0,
+  turnSmoothness: 0.98,
 
   // Elasticity
   waveDelayFactor: 0.2,
@@ -204,15 +229,22 @@ const defaultBehavior: BehaviorParams = {
   edgeSpeedMultiplier: 1.15,
 
   // Predator
-  burstMultiplier: 3.5,
-  compressionStrength: 5.0,
+  burstMultiplier: 2.5,
+  compressionStrength: 4.0,
   baitBallDuration: 3000,
-  recoveryDuration: 6000,
+  recoveryDuration: 4000,
 
   // Environment
   seabedAvoidanceStrength: 2.5,
   obstacleLookAheadDistance: 40.0,
-  preferredDepthBand: 50.0
+  preferredDepthBand: 50.0,
+
+  // Whirlpool
+  whirlpoolStrength: 1.8,
+  whirlpoolRadius: 110.0,
+
+  // Predator
+  sharkScale: 8.5
 }
 
 const defaultPhysics: PhysicsParams = {
@@ -222,16 +254,20 @@ const defaultPhysics: PhysicsParams = {
 }
 
 const defaultRendering: RenderingParams = {
-  fishCount: 500,
-  modelScale: 3.2,
-  lightingIntensity: 2.1,
-  metalness: 0.9,
-  roughness: 0.4, // Smoothness 0.60
-  envMapIntensity: 1.0,
-  emissiveIntensity: 0.0,
-  fogDensity: 0.012,
-  fogColor: '#081621',
+  fishCount: 25000,
+  modelScale: 1.8,
+  lightingIntensity: 2.0,
+  metalness: 0.7,
+  roughness: 0.5, // Smoothness 0.5
+  envMapIntensity: 0.2,
+  emissiveIntensity: 0.05,
+  fogDensity: 0.007,
+  fogColor: '#05101a',
+  particleCount: 1200,
+  particleOpacity: 0.9,
+  blueFilterIntensity: 0.5,
   selectedSpecies: 'sardine', // Options: 'sardine', 'tropical', 'school', 'mixed'
+  resolutionScale: 1.0,
 }
 
 const defaultWalls: WallParams = {
@@ -273,8 +309,8 @@ const defaultPerformance: PerformanceData = {
 }
 
 const defaultCamera: CameraState = {
-  position: { x: 0, y: 60, z: 150 }, // Default position for single-fish preset
-  target: { x: 0, y: 0, z: 0 },
+  position: { x: 35, y: 22, z: 55 }, // Default position for dynamic action cam
+  target: { x: 0, y: 20, z: 0 },
 }
 
 const defaultUI: UIState = {
@@ -283,7 +319,7 @@ const defaultUI: UIState = {
   fullscreen: false,
   activeSection: 'behavior',
   selectedBehaviorPreset: 'default',
-  selectedCameraPreset: 'single-fish', // Default to single fish camera
+  selectedCameraPreset: 'action', // Default to dynamic action cam
 }
 
 // Store creation
@@ -308,8 +344,13 @@ export const useSimulationStore = create<SimulationStore>()(
       performance: defaultPerformance,
 
       camera: defaultCamera,
+      cameraToast: null,
+      whirlpoolTrigger: 0,
 
       actions: {
+        triggerWhirlpool: () => {
+          set((state) => ({ whirlpoolTrigger: (state.whirlpoolTrigger || 0) + 1 }))
+        },
         updateParameter: (category, param, value) => {
           set((state) => ({
             parameters: {
@@ -344,7 +385,10 @@ export const useSimulationStore = create<SimulationStore>()(
             parameters: {
               behavior: defaultBehavior,
               physics: defaultPhysics,
-              rendering: defaultRendering,
+              rendering: {
+                ...defaultRendering,
+                fishCount: state.parameters.rendering.fishCount || 25000,
+              },
               walls: defaultWalls,
               seaFloor: defaultSeaFloor,
             },
@@ -360,7 +404,7 @@ export const useSimulationStore = create<SimulationStore>()(
         },
 
         loadPreset: (preset) => {
-          // Preset configurations for Phase 1 + Flocking
+          // Preset configurations for Phase 1 + Flocking (Behavior & Physics only - NEVER overwrite fish population!)
           const presets = {
             calm: {
               behavior: {
@@ -374,7 +418,6 @@ export const useSimulationStore = create<SimulationStore>()(
                 clusterBias: 0.2
               },
               physics: { ...defaultPhysics, maxSpeed: 30 },
-              rendering: { ...defaultRendering, fishCount: 200 },
             },
             tight: {
               behavior: {
@@ -385,12 +428,11 @@ export const useSimulationStore = create<SimulationStore>()(
                 socialWeight: 0.7,
                 individualWeight: 0.3,
                 separationRadius: 6.0,
-                collisionRadius: 2.5, // Smaller for tight formation
+                collisionRadius: 2.5,
                 waveDelayFactor: 0.8,
                 clusterBias: 0.9
               },
               physics: { ...defaultPhysics, maxSpeed: 50 },
-              rendering: { ...defaultRendering, fishCount: 250 },
             },
             scattered: {
               behavior: {
@@ -402,12 +444,11 @@ export const useSimulationStore = create<SimulationStore>()(
                 individualWeight: 0.8,
                 neighborRadius: 15.0,
                 separationRadius: 12.0,
-                collisionRadius: 6.0, // Larger for scattered behavior
+                collisionRadius: 6.0,
                 waveDelayFactor: 0.0,
                 clusterBias: 0.0
               },
               physics: { ...defaultPhysics, maxSpeed: 80 },
-              rendering: { ...defaultRendering, fishCount: 150 },
             },
             aggressive: {
               behavior: {
@@ -418,12 +459,11 @@ export const useSimulationStore = create<SimulationStore>()(
                 socialWeight: 0.8,
                 individualWeight: 0.2,
                 maxTurnRate: 2.0,
-                accelerationRate: 4.0,
+                accelerationRate: 5.0,
                 waveDelayFactor: 0.3,
                 clusterBias: 0.6
               },
               physics: { ...defaultPhysics, maxSpeed: 60, maxForce: 15 },
-              rendering: { ...defaultRendering, fishCount: 200 },
             },
             gentle: {
               behavior: {
@@ -439,7 +479,6 @@ export const useSimulationStore = create<SimulationStore>()(
                 clusterBias: 0.4
               },
               physics: { ...defaultPhysics, maxSpeed: 25, maxForce: 8 },
-              rendering: { ...defaultRendering, fishCount: 180 },
             },
             chaotic: {
               behavior: {
@@ -455,7 +494,6 @@ export const useSimulationStore = create<SimulationStore>()(
                 clusterBias: 0.1
               },
               physics: { ...defaultPhysics, maxSpeed: 70, maxForce: 20 },
-              rendering: { ...defaultRendering, fishCount: 120 },
             },
             organized: {
               behavior: {
@@ -471,7 +509,6 @@ export const useSimulationStore = create<SimulationStore>()(
                 clusterBias: 0.7
               },
               physics: { ...defaultPhysics, maxSpeed: 45, maxForce: 12 },
-              rendering: { ...defaultRendering, fishCount: 220 },
             },
             minimal: {
               behavior: {
@@ -485,7 +522,6 @@ export const useSimulationStore = create<SimulationStore>()(
                 clusterBias: 0.3
               },
               physics: { ...defaultPhysics, maxSpeed: 35, maxForce: 9 },
-              rendering: { ...defaultRendering, fishCount: 100 },
             },
           }
 
@@ -493,7 +529,17 @@ export const useSimulationStore = create<SimulationStore>()(
           if (selectedPreset) {
             set((state) => ({
               parameters: {
-                ...selectedPreset,
+                ...state.parameters,
+                behavior: {
+                  ...state.parameters.behavior,
+                  ...selectedPreset.behavior,
+                },
+                physics: {
+                  ...state.parameters.physics,
+                  ...selectedPreset.physics,
+                },
+                // Rendering (and especially fishCount) is deliberately preserved!
+                rendering: state.parameters.rendering,
                 walls: state.parameters.walls,
                 seaFloor: state.parameters.seaFloor,
               },
@@ -511,19 +557,36 @@ export const useSimulationStore = create<SimulationStore>()(
 
         loadCameraPreset: (preset) => {
           // Camera preset configurations
-          const cameraPresets = {
-            default: { position: { x: 120, y: 40, z: 80 }, target: { x: 0, y: 0, z: 0 } },
-            close: { position: { x: 0, y: 30, z: 100 }, target: { x: 0, y: 0, z: 0 } },
-            'dolly-cam': { position: { x: 0, y: 25, z: 60 }, target: { x: 0, y: 0, z: 0 } },
-            action: { position: { x: 120, y: 40, z: 80 }, target: { x: 0, y: 0, z: 0 } },
-            follow: { position: { x: 0, y: 40, z: 80 }, target: { x: 0, y: 0, z: 0 } },
-            'single-fish': { position: { x: 0, y: 60, z: 150 }, target: { x: 0, y: 0, z: 0 } },
+          const cameraPresets: Record<string, { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }> = {
+            default: { position: { x: 100, y: 40, z: 90 }, target: { x: 0, y: 20, z: 0 } },
+            'single-fish': { position: { x: 6, y: 4.5, z: -14 }, target: { x: 0, y: 20, z: 0 } },
+            follow: { position: { x: 0, y: 32, z: -75 }, target: { x: 0, y: 20, z: 0 } },
+            action: { position: { x: 35, y: 22, z: 55 }, target: { x: 0, y: 20, z: 0 } },
+            'dolly-cam': { position: { x: 68, y: 16, z: 0 }, target: { x: 0, y: 20, z: 0 } },
+            close: { position: { x: 4, y: 2.5, z: -8 }, target: { x: 0, y: 20, z: 0 } },
           }
 
           const selectedCameraPreset = cameraPresets[preset as keyof typeof cameraPresets]
           if (selectedCameraPreset) {
+            const presetMeta: Record<string, { name: string; desc: string; icon: string }> = {
+              'default': { name: 'Free Orbit Overview', desc: 'Wide oceanic perspective with 360° rotation', icon: '🌐' },
+              'single-fish': { name: 'Single Sardine Focus', desc: 'Companion camera tracking an individual fish', icon: '🐟' },
+              'follow': { name: 'School Follow Orbit', desc: 'Cinematic trailing camera tracking the bait ball', icon: '🌊' },
+              'action': { name: 'Dynamic Action Cam', desc: 'High-speed chase view undulating through the school', icon: '⚡' },
+              'dolly-cam': { name: 'Cinematic Dolly View', desc: 'Smooth horizontal glide keeping the school centered', icon: '🎥' },
+              'close': { name: 'Macro Detail View', desc: 'Intimate close-up showing iridescent scales and fin movement', icon: '🔍' },
+            }
+            const meta = presetMeta[preset] || { name: preset, desc: 'Cinematic Camera', icon: '🎥' }
+
             set((_state) => ({
               camera: selectedCameraPreset,
+              cameraToast: {
+                preset,
+                name: meta.name,
+                desc: meta.desc,
+                icon: meta.icon,
+                timestamp: Date.now(),
+              },
               ui: {
                 ..._state.ui,
                 selectedCameraPreset: preset,
@@ -532,10 +595,23 @@ export const useSimulationStore = create<SimulationStore>()(
 
             // Set camera mode based on preset
             if (preset === 'single-fish') {
-              // This will be handled by the scene when it detects the preset
               console.log('Single fish camera mode activated')
             }
           }
+        },
+
+        cycleCamera: () => {
+          const cameraPresets = ['default', 'single-fish', 'follow', 'action', 'dolly-cam', 'close']
+          const currentPreset = _get().ui.selectedCameraPreset
+          const currentIndex = cameraPresets.indexOf(currentPreset)
+          const nextIndex = (currentIndex + 1) % cameraPresets.length
+          const nextPreset = cameraPresets[nextIndex]
+
+          _get().actions.loadCameraPreset(nextPreset)
+        },
+
+        clearCameraToast: () => {
+          set({ cameraToast: null })
         },
 
         updateCamera: (camera) => {
@@ -654,10 +730,10 @@ export const useSimulationStore = create<SimulationStore>()(
           state.parameters.seaFloor = { ...defaultSeaFloor }
           state.parameters.rendering = { ...defaultRendering }
           state.parameters.physics = { ...defaultPhysics }
-          state.ui.sidebarVisible = false // Force sidebar closed on load as requested
-          state.ui.selectedCameraPreset = 'single-fish' // Force single-fish camera on load
-          state.camera = { position: { x: 0, y: 60, z: 150 }, target: { x: 0, y: 0, z: 0 } }
-          console.log('🔄 FINAL COORDINATION RESET APPLIED')
+          state.ui.sidebarVisible = false
+          state.ui.selectedCameraPreset = 'action'
+          state.camera = { position: { x: 35, y: 22, z: 55 }, target: { x: 0, y: 20, z: 0 } }
+          console.log('🌀 CIRCULAR FORMATIONS & SPEED RESET APPLIED')
         }
       },
     }

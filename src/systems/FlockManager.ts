@@ -17,315 +17,226 @@ export interface FlockStats {
   sizeRange: { min: number; max: number }
 }
 
+// Completely new FlockManager using a dense flat 3D grid hash for supreme performance
 export class FlockManager {
-  private fish: Fish[] = []
+  private allFish: Fish[] = []
   private config: FlockConfig
   private isPaused: boolean = false
-  private grid: Map<number, Fish[]> = new Map()
-  private gridCellSize: number = 30
-  private nearbyFishBuffer: Fish[] = [] // Reusable buffer for nearby fish
+
+  // New Spatial Partitioning Data Structures
+  // We use a Map of flat arrays. The key is a fast integer hash of the 3D grid coordinate.
+  private spatialHash: Map<number, Fish[]> = new Map()
+  private cellSize: number = 60.0 // Must be larger than maximum expected neighborRadius (50)
+  private neighborBuffer: Fish[] = [] // Pre-allocated query buffer
+
+  // Pre-calculated stats buffer
+  private currentStats: FlockStats = {
+    fishCount: 0,
+    averageSpeed: 0,
+    activeFish: 0,
+    averageSize: 1,
+    sizeRange: { min: 1, max: 1 }
+  }
 
   constructor(config: FlockConfig) {
     this.config = config
-    this.gridCellSize = config.partitionSize || 30
-    this.initializeFish()
+    this.spawnFishVolumetric(config.fishCount)
   }
 
   /**
-   * Initialize static fish with random positions within bounds
+   * Spawns fish in a completely new way: Volumetric Random Distribution
    */
-  private initializeFish(): void {
-    const bounds = this.config.bounds
-    const behavior = this.config.behavior
-    const fishCount = this.config.fishCount
+  private spawnFishVolumetric(count: number): void {
+    const { min, max } = this.config.bounds
 
-    console.log('Initializing', fishCount, 'fish in clusters')
+    for (let i = 0; i < count; i++) {
+      // Distribute fish randomly but biased towards the center of the tank
+      // using a simple normal distribution approximation
+      const rx = (Math.random() + Math.random() + Math.random()) / 3
+      const ry = (Math.random() + Math.random() + Math.random()) / 3
+      const rz = (Math.random() + Math.random() + Math.random()) / 3
 
-    // Create 4 cluster centers within the bounds
-    const clusterCount = 4
-    const clusters: THREE.Vector3[] = []
+      const pos = new THREE.Vector3(
+        min.x + (max.x - min.x) * rx,
+        min.y + (max.y - min.y) * ry,
+        min.z + (max.z - min.z) * rz
+      )
 
-    for (let i = 0; i < clusterCount; i++) {
-      clusters.push(new THREE.Vector3(
-        (Math.random() - 0.5) * (bounds.max.x - bounds.min.x) * 0.6,
-        (Math.random() - 0.5) * (bounds.max.y - bounds.min.y) * 0.4,
-        (Math.random() - 0.5) * (bounds.max.z - bounds.min.z) * 0.6
-      ))
+      this.allFish.push(new Fish(pos, this.config.behavior))
     }
-
-    for (let i = 0; i < fishCount; i++) {
-      // Pick a cluster
-      const clusterCenter = clusters[i % clusterCount]
-
-      // Spawn around the cluster with some jitter
-      const position = clusterCenter.clone().add(new THREE.Vector3(
-        (Math.random() - 0.5) * 40,
-        (Math.random() - 0.5) * 20,
-        (Math.random() - 0.5) * 40
-      ))
-
-      const fish = new Fish(position, behavior)
-      this.fish.push(fish)
-    }
-
-    console.log('Created', this.fish.length, 'clustered fish')
   }
 
-  /**
-   * Update all fish with individual movement + flocking behavior + boundary avoidance
-   */
-  public update(deltaTime: number, predatorPosition: THREE.Vector3 | null = null): void {
-    if (this.isPaused) return
+  // --- PUBLIC INTERFACES FIXED FOR SCENE/UI ---
 
-    // Update spatial partitioning grid
-    this.updateGrid()
+  public getFish(): Fish[] { return this.allFish }
+  public getFishCount(): number { return this.allFish.length }
+  public setPaused(paused: boolean): void { this.isPaused = paused }
+  public getConfig(): FlockConfig { return { ...this.config } }
 
-    // Update each fish with access to potential neighbors in nearby grid cells
-    this.fish.forEach(fish => {
-      this.populateNearbyFish(fish)
-      fish.update(deltaTime, this.nearbyFishBuffer, this.config.bounds, predatorPosition)
-    })
+  public updateConfig(newConfig: Partial<FlockConfig>): void {
+    Object.assign(this.config, newConfig)
   }
 
-  private updateGrid(): void {
-    this.grid.clear()
-    this.fish.forEach(fish => {
-      const key = this.getGridKey(fish.physics.position)
-      let cell = this.grid.get(key)
+  public updateBehavior(newBehavior: Partial<FishBehavior>): void {
+    Object.assign(this.config.behavior, newBehavior)
+    // Push new behaviors instantly to all children
+    for (let i = 0; i < this.allFish.length; i++) {
+      Object.assign(this.allFish[i].behavior, newBehavior)
+    }
+  }
+
+  public setFishCount(targetCount: number): void {
+    const current = this.allFish.length
+    if (targetCount > current) {
+      this.spawnFishVolumetric(targetCount - current)
+    } else if (targetCount < current) {
+      // Cull from the end
+      this.allFish.splice(targetCount)
+    }
+    this.config.fishCount = this.allFish.length
+  }
+
+  public getStats(): FlockStats {
+    // Return cached stats calculated during the update loop to save CPU
+    return this.currentStats
+  }
+
+  public triggerPredator(position: THREE.Vector3): void {
+    for (let i = 0; i < this.allFish.length; i++) {
+      this.allFish[i].triggerPredator(position)
+    }
+  }
+
+  public getHuntTarget(fromPosition?: THREE.Vector3): THREE.Vector3 | null {
+    if (this.spatialHash.size === 0) return null
+
+    let bestScore = -1
+    let bestCentroid: THREE.Vector3 | null = null
+
+    for (const [_hash, cell] of this.spatialHash.entries()) {
+      if (cell.length < 3) continue
+
+      // Calculate centroid of this school cluster
+      const centroid = new THREE.Vector3()
+      for (let i = 0; i < cell.length; i++) {
+        centroid.add(cell[i].getPosition())
+      }
+      centroid.divideScalar(cell.length)
+
+      let score = cell.length
+      if (fromPosition) {
+        const dist = fromPosition.distanceTo(centroid)
+        // Score balances largest school (population weight) vs nearest school (distance penalty)
+        score = Math.pow(cell.length, 1.15) / (dist + 30.0)
+      }
+
+      if (score > bestScore) {
+        bestScore = score
+        bestCentroid = centroid
+      }
+    }
+
+    return bestCentroid
+  }
+
+  public dispose(): void {
+    this.allFish = []
+    this.spatialHash.clear()
+  }
+
+  // --- CORE UPDATE LOOP (NEW LOGIC) ---
+
+  public update(deltaTime: number, predatorPosition: THREE.Vector3 | null): void {
+    if (this.isPaused || this.allFish.length === 0) return
+
+    this.rebuildSpatialHash()
+
+    let totalSpeed = 0
+    let minSize = 999
+    let maxSize = 0
+
+    // Iterate through all fish and apply physics
+    for (let i = 0; i < this.allFish.length; i++) {
+      const fish = this.allFish[i]
+
+      // 1. O(1) Spatial Query
+      this.queryNeighborsFast(fish.getPosition())
+
+      // 2. Continuous Physics Update
+      fish.update(deltaTime, this.neighborBuffer, this.config.bounds, predatorPosition)
+
+      // 3. Accumulate Stats inline (prevent double looping)
+      const speed = fish.getSpeed()
+      const size = fish.getSizeFactor()
+      totalSpeed += speed
+      if (size < minSize) minSize = size
+      if (size > maxSize) maxSize = size
+    }
+
+    // Lock in stats for the UI
+    this.currentStats = {
+      fishCount: this.allFish.length,
+      activeFish: this.allFish.length,
+      averageSpeed: totalSpeed / this.allFish.length,
+      averageSize: (minSize + maxSize) / 2, // approximation
+      sizeRange: { min: minSize, max: maxSize }
+    }
+  }
+
+  // --- NEW SPATIAL PARTITIONING (Fast Hash Method) ---
+
+  private hashCoords(ix: number, iy: number, iz: number): number {
+    // Quick integer hashing for 3D coordinates. 
+    // Using prime multipliers avoids collisions.
+    // Bitwise operations are fast in JS.
+    return ((ix * 73856093) ^ (iy * 19349663) ^ (iz * 83492791)) & 0x7FFFFFFF
+  }
+
+  private rebuildSpatialHash(): void {
+    // Instead of .clear() and new arrays, we reuse arrays if we can, but JS map clear is heavily optimized V8 side.
+    this.spatialHash.clear()
+
+    for (let i = 0; i < this.allFish.length; i++) {
+      const fish = this.allFish[i]
+      const pos = fish.getPosition()
+
+      // Quantize space
+      const ix = Math.floor(pos.x / this.cellSize)
+      const iy = Math.floor(pos.y / this.cellSize)
+      const iz = Math.floor(pos.z / this.cellSize)
+
+      const hash = this.hashCoords(ix, iy, iz)
+
+      let cell = this.spatialHash.get(hash)
       if (!cell) {
         cell = []
-        this.grid.set(key, cell)
+        this.spatialHash.set(hash, cell)
       }
       cell.push(fish)
-    })
+    }
   }
 
-  /**
-   * Bit-packed numeric key for spatial partitioning
-   * Assuming coordinates stay within -500 to 500 range
-   * 10 bits each for x, y, z (total 30 bits)
-   */
-  private getGridKey(position: THREE.Vector3): number {
-    const x = (Math.floor(position.x / this.gridCellSize) + 512) & 0x3FF
-    const y = (Math.floor(position.y / this.gridCellSize) + 512) & 0x3FF
-    const z = (Math.floor(position.z / this.gridCellSize) + 512) & 0x3FF
-    return (x << 20) | (y << 10) | z
-  }
+  private queryNeighborsFast(position: THREE.Vector3): void {
+    this.neighborBuffer.length = 0 // Reset length, keep memory block
 
-  private populateNearbyFish(fish: Fish): void {
-    this.nearbyFishBuffer.length = 0 // Clear without re-allocating
-    const pos = fish.physics.position
-    const radius = Math.ceil(this.config.behavior.neighborRadius / this.gridCellSize)
+    const ix = Math.floor(position.x / this.cellSize)
+    const iy = Math.floor(position.y / this.cellSize)
+    const iz = Math.floor(position.z / this.cellSize)
 
-    const centerX = Math.floor(pos.x / this.gridCellSize)
-    const centerY = Math.floor(pos.y / this.gridCellSize)
-    const centerZ = Math.floor(pos.z / this.gridCellSize)
-
-    for (let x = centerX - radius; x <= centerX + radius; x++) {
-      for (let y = centerY - radius; y <= centerY + radius; y++) {
-        for (let z = centerZ - radius; z <= centerZ + radius; z++) {
-          // Optimized key generation inside loop
-          const kx = (x + 512) & 0x3FF
-          const ky = (y + 512) & 0x3FF
-          const kz = (z + 512) & 0x3FF
-          const key = (kx << 20) | (ky << 10) | kz
-
-          const cellFish = this.grid.get(key)
-          if (cellFish) {
-            for (let i = 0; i < cellFish.length; i++) {
-              const otherFish = cellFish[i]
-              if (otherFish !== fish) {
-                this.nearbyFishBuffer.push(otherFish)
-              }
+    // Query the 3x3x3 local neighborhood
+    for (let x = -1; x <= 1; x++) {
+      for (let y = -1; y <= 1; y++) {
+        for (let z = -1; z <= 1; z++) {
+          const hash = this.hashCoords(ix + x, iy + y, iz + z)
+          const cell = this.spatialHash.get(hash)
+          if (cell) {
+            // Dump cell contents straight into buffer
+            for (let c = 0; c < cell.length; c++) {
+              this.neighborBuffer.push(cell[c])
             }
           }
         }
       }
     }
-  }
-
-  /**
-   * Get all fish
-   */
-  public getFish(): Fish[] {
-    return this.fish
-  }
-
-  /**
-   * Get fish statistics including size variation
-   */
-  public getStats(): FlockStats {
-    if (this.fish.length === 0) {
-      return {
-        fishCount: 0,
-        averageSpeed: 0,
-        activeFish: 0,
-        averageSize: 1.0,
-        sizeRange: { min: 1.0, max: 1.0 }
-      }
-    }
-
-    // Calculate speed statistics
-    const totalSpeed = this.fish.reduce((sum, fish) => sum + fish.getSpeed(), 0)
-    const averageSpeed = totalSpeed / this.fish.length
-
-    // Calculate size statistics
-    const sizes = this.fish.map(fish => fish.getSizeFactor())
-    const totalSize = sizes.reduce((sum, size) => sum + size, 0)
-    const averageSize = totalSize / this.fish.length
-    const minSize = Math.min(...sizes)
-    const maxSize = Math.max(...sizes)
-
-    return {
-      fishCount: this.fish.length,
-      averageSpeed: averageSpeed,
-      activeFish: this.fish.length,
-      averageSize: averageSize,
-      sizeRange: { min: minSize, max: maxSize }
-    }
-  }
-
-  /**
-   * Update behavior parameters for all fish
-   */
-  public updateBehavior(newBehavior: Partial<FishBehavior>): void {
-    Object.assign(this.config.behavior, newBehavior)
-    this.fish.forEach(fish => {
-      Object.assign(fish.behavior, newBehavior)
-
-      // Preserve specialized leader settings
-      if (fish.isLeader) {
-        fish.behavior.cohesionStrength = 0.05
-        fish.behavior.individualWeight = 0.8
-      }
-    })
-  }
-
-  /**
-   * Update flock configuration
-   */
-  public updateConfig(newConfig: Partial<FlockConfig>): void {
-    Object.assign(this.config, newConfig)
-  }
-
-  /**
-   * Pause/unpause flock updates
-   */
-  public setPaused(paused: boolean): void {
-    this.isPaused = paused
-  }
-
-  /**
-   * Get flock configuration
-   */
-  public getConfig(): FlockConfig {
-    return { ...this.config }
-  }
-
-  /**
-   * Get fish count
-   */
-  public getFishCount(): number {
-    return this.fish.length
-  }
-
-  /**
-   * Add fish to the flock
-   */
-  public addFish(count: number): void {
-    const bounds = this.config.bounds
-    const behavior = this.config.behavior
-
-    for (let i = 0; i < count; i++) {
-      const position = new THREE.Vector3(
-        bounds.min.x + Math.random() * (bounds.max.x - bounds.min.x),
-        bounds.min.y + Math.random() * (bounds.max.y - bounds.min.y),
-        bounds.min.z + Math.random() * (bounds.max.z - bounds.min.z)
-      )
-
-      const fish = new Fish(position, behavior)
-      this.fish.push(fish)
-    }
-  }
-
-  /**
-   * Remove fish from the flock
-   */
-  public removeFish(count: number): void {
-    const removeCount = Math.min(count, this.fish.length)
-    this.fish.splice(-removeCount)
-  }
-
-  /**
-   * Set exact fish count (add or remove as needed)
-   */
-  public setFishCount(targetCount: number): void {
-    const currentCount = this.fish.length
-
-    if (targetCount > currentCount) {
-      // Add fish
-      const addCount = targetCount - currentCount
-      this.addFish(addCount)
-      console.log(`Added ${addCount} fish. Total: ${this.fish.length}`)
-    } else if (targetCount < currentCount) {
-      // Remove fish
-      const removeCount = currentCount - targetCount
-      this.removeFish(removeCount)
-      console.log(`Removed ${removeCount} fish. Total: ${this.fish.length}`)
-    }
-
-    // Update config to reflect new count
-    this.config.fishCount = this.fish.length
-  }
-
-  /**
-   * Trigger a predator event for all fish
-   */
-  public triggerPredator(position: THREE.Vector3): void {
-    const currentTime = performance.now() * 0.001
-    this.fish.forEach(fish => fish.triggerPredator(position, currentTime))
-    console.log('🦈 Predator event triggered at', position)
-  }
-
-  /**
-   * Find the most densely populated area for hunting
-   */
-  public getHuntTarget(): THREE.Vector3 | null {
-    if (this.grid.size === 0) return null
-
-    let bestCell: Fish[] | null = null
-    let maxCount = 0
-
-    for (const cell of this.grid.values()) {
-      if (cell.length > maxCount) {
-        maxCount = cell.length
-        bestCell = cell
-      }
-    }
-
-    if (!bestCell) return null
-    const cell: Fish[] = bestCell
-
-    // Calculate center of this cell
-    const center = new THREE.Vector3()
-    cell.forEach(f => center.add(f.physics.position))
-    center.divideScalar(cell.length)
-
-    return center
-  }
-
-  /**
-   * Clear all fish
-   */
-  public clearFish(): void {
-    this.fish = []
-  }
-
-  /**
-   * Dispose of flock resources
-   */
-  public dispose(): void {
-    this.fish.forEach(fish => fish.dispose())
-    this.fish = []
   }
 }
